@@ -1,0 +1,226 @@
+"""
+License information goes here.
+"""
+
+import regex
+
+from .exceptions import StarpError
+from .models import Sequence, Snp
+
+ALPHABET = 'ACGT-/()'
+SNP_ALPHABET = 'ACGT-'
+
+def get_parser(data):
+    """
+    Given the user's input data, return the correct Parser.
+
+    It is highly recommended (by NCBI) not to use BLAST data pairwise
+    data in other programs. That is only meant to be human-readable and
+    is subject to significant changes in the future.
+
+    All accepted formats MUST include a snps() function that returns the
+    SNPs in HGVS's standard representation.
+
+    Args:
+        data: The user's input data.
+
+    Returns:
+        The correct parser for their data format.
+
+    Raises:
+        StarpError: if format is not recognized.
+    """
+
+    # Test for SnpSequence
+    pattern = regex.compile(r'\w|\(.\/.\)')
+    matched_chars = ''.join(regex.findall(pattern, data))
+    if matched_chars == data:
+        return SnpSequence(data)
+
+    # Test for TwoAlleles
+    lines = data.splitlines()
+    if len(lines) == 4 and lines[0].startswith('>') and lines[2].startswith('>'):
+        return TwoAlleles(data)
+
+    # Format not recognized.
+    raise StarpError("SNP Format Not Recognized")
+
+class SnpSequence:
+    """
+    Defined as a single sequence of nucleotides with SNPs specified
+    by (a/b), a != b.
+
+    Accepted alphabet is {A, C, G, T, -, /, (, )}
+
+    The accepted Grammar of this format is:
+    S -> nS | (a/b)S | empty_string
+    where n, a, b in {A, C, G, T, -} and a != b.
+
+    Raises ValueError if the data contains invalid characters.
+
+    Raises SyntaxError if Snps contain the same character or the data
+    has incorrect grammar.
+    """
+    def __init__(self, data):
+        SNP_PATTERN = r'\([' + SNP_ALPHABET + r']\/[' + SNP_ALPHABET + r']\)'
+
+        """ Search for invalid characters. """
+        if regex.search(r'[^ACGT\-/()]', data):
+            raise StarpError(('The accepted alphabet for a SNP sequence is '
+                              '{A, C, G, T, -, /, (, )}.'))
+
+        """ Search for SNPs with the same characters, eg (A/A) and (-/-). """
+        if regex.search(r'\(([ACGT-])\/(\1)\)', data):
+            raise StarpError('SNPs must contain different letters from '
+                             '' + SNP_ALPHABET + '!')
+
+        """Search for anything that doesn't match the grammar.
+        Kind of a hack, but this is done by searching for the
+        grammar that's wanted. Then if there are unmatched chars,
+        the length of matched_chars is less than the length of the
+        data. """
+        pattern = regex.compile('[' + SNP_ALPHABET + ']|' + SNP_PATTERN)
+        matched_chars = ''.join(regex.findall(pattern, data))
+        if len(matched_chars) < len(data):
+            raise StarpError("Invalid syntax.")
+
+        # Convert data into TwoAlleles format
+        data_iter = iter(data)
+        allele1 = list()
+        allele2 = list()
+
+        while True:
+            try:
+                c = next(data_iter)
+            except StopIteration:
+                break
+
+            if c == '(':
+                allele1.append(next(data_iter))
+            elif c == '/':
+                allele2.append(next(data_iter))
+            elif c == ')':
+                # Ignore this.
+                pass
+            else:
+                # This character is common to both alleles.
+                allele1.append(c)
+                allele2.append(c)
+
+        self.allele1_aligned = Sequence(''.join(allele1))
+        self.allele2_aligned = Sequence(''.join(allele2))
+
+        self.allele1 = Sequence(''.join(allele1).replace('-', ''))
+        self.allele2 = Sequence(''.join(allele2).replace('-', ''))
+
+        self._twoAllelesFormat = TwoAlleles('>Allele1\n'
+                                            + str(self.allele1_aligned)
+                                            + '\n>Allele2\n'
+                                            + str(self.allele2_aligned))
+
+    def snps(self):
+        """
+        Returns the SNP objects from the data.
+        """
+        return self._twoAllelesFormat.snps()
+
+class TwoAlleles:
+    """
+    Parses SNPs out of two alleles entered as
+
+    >Allele 1
+    NNNNNNNNNNANNNNNNNNNN
+    >Allele 2
+    NNNNNNNNNNBNNNNNNNNNN
+
+    Each allele must be a continuous string (no new lines).
+
+    The only accepted alphabet for the alleles {A, C, G, T, -, N}
+
+    Attributes:
+        allele1_aligned: The original Allele 1 data with '-' as
+            placeholders for insertions and deletions.
+        allele2_aligned: The original Allele 2 data with '-' as
+            placeholders for insertions and deletions.
+        allele1: The first allele but without '-'s.
+        allele2: The second allele but without '-'s.
+    """
+    def __init__(self, data):
+        """
+        Args:
+            data: A string of four lines in the following format.
+
+                    >Allele 1
+                    NNNNNNNNNNANNNNNNNNNN
+                    >Allele 2
+                    NNNNNNNNNNBNNNNNNNNNN
+
+        Raises:
+            StarpError: The input alleles are of differing lengths.
+            StarpError: The alleles have characters not in "ACGTN-"
+        """
+        lines = data.splitlines()
+        self.allele1_aligned = Sequence(lines[1].rstrip())
+        self.allele2_aligned = Sequence(lines[3].rstrip())
+
+        self.allele1 = Sequence(str(self.allele1_aligned).replace('-', ''))
+        self.allele2 = Sequence(str(self.allele2_aligned).replace('-', ''))
+
+        if len(self.allele1_aligned) != len(self.allele2_aligned):
+            raise StarpError("The alleles are of differing lengths.")
+
+        if regex.search('[^ACGTN-]', str(self.allele1_aligned)):
+            raise StarpError("Allele 1 has invalid characters.\
+                    The only valid characters are A, C, G, T, N, and -")
+
+        if regex.search('[^ACGTN-]', str(self.allele2_aligned)):
+            raise StarpError("Allele 2 has invalid characters.\
+                    The only valid characters are A, C, G, T, N, and -")
+
+    def snps(self):
+        """
+        Computes the SNPs between the two aligned alleles.
+
+        Args:
+            None
+
+        Returns:
+            A list of Snp objects representing all Snps between the
+            aligned allele sequences.
+
+        Raises:
+            None
+        """
+        snps = list()
+        position = 1 # Snps should be one indexed.
+
+        # Insertions throw off the positioning of Snps, so we need to
+        # keep track of them and offset the positions when there are
+        # many insertions.
+
+        # Example: Allele1 = TGACACGTACGT
+        # Insertion of 'A' at position 2 and 'G' at position 8 gives
+        # TAGACACGGTACGT.
+        num_insertions = 0
+
+        # Constructs SNP objects by comparing element-wise the characters in
+        # the aligned sequences.
+        for pair in zip(str(self.allele1_aligned), str(self.allele2_aligned)):
+            if pair[0] == pair[1]:
+                pass # No snp here.
+            elif pair[0] == '-':
+                # Insertion SNP
+                descriptor = '.' + str(position-num_insertions) + 'ins' + pair[1]
+                snps.append(Snp(descriptor))
+                num_insertions += 1
+            elif pair[1] == '-':
+                # Deletion SNP
+                descriptor = '.' + str(position) + 'del'
+                snps.append(Snp(descriptor))
+            else:
+                # Substitution SNP
+                descriptor = '.' + str(position) + str(pair[0]) + '>' + str(pair[1])
+                snps.append(Snp(descriptor))
+            position += 1
+
+        return snps

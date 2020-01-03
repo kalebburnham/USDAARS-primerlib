@@ -1,0 +1,6 @@
+Lib/
+Scripts/
+__pycache__/
+docs/~*
+flask_session/
+pyvenv.cfg
