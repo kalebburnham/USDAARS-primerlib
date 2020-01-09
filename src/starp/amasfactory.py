@@ -3,533 +3,128 @@ License information goes here.
 """
 
 from .exceptions import StarpError
-from .models import Sequence, Primer
-
-class AmasFactory:
-    """
-    A factory for creating AMAS primers.
-
-    Attributes:
-        allele1: The continuous allele 1 Sequence from the SNP
-                parsers.
-        allele2: The continuous allele 2 Sequence from the SNP
-                parsers.
-        snps: The list of all SNPs between these alleles.
-        snp: The user's chosen SNP.
-
-    Public methods:
-        generate
-
-    """
-
-    def __init__(self, allele1, allele2, snps, snp):
-        """
-
-        Args:
-            allele1: The continuous allele 1 Sequence from the SNP
-                parsers. Should not contain any dashes.
-            allele2: The continuous allele 2 Sequence from the SNP
-                parsers. Should not contain any dashes.
-            snps: The list of all SNPs between these alleles.
-            snp: The user's chosen SNP.
-
-        Raises:
-            None
-        """
-        self.allele1 = Sequence(allele1)
-        self.allele2 = Sequence(allele2)
-        self.snps = snps
-        self.snp = snp
-
-    def generate(self):
-        """
-        Generates an AMAS pair using rules defined by Dr. Long.
-
-        Args:
-            None
-
-        Returns:
-            A 2-tuple holding the AMAS Sequence objects.
-
-        Raises:
-            StarpError: when no suitable Starp primers are found.
-            StarpError: when a non-substitution SNP is selected.
-        """
-        amas = (None, None)
-
-        if self.snp.type == 'substitution':
-            # This information came from
-            # docs/Long_11_Nov_19.docx
-            pairs = self._generate_upstream(16, 26)
-            pair = _best_pair(pairs)
-
-            if pair is None:
-                pairs = self._generate_downstream(16, 26)
-                pair = _best_pair(pairs)
-
-            if pair is None:
-                raise StarpError('Cannot find Starp primers at this location '
-                                 'due to improper melting temperatures.')
-
-            amas = self._substitute_bases(pair)
-
-        elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
-            # The information from this branch came from
-            # docs/how to design AMAS primers for indel_20191125[3981].pptx
-            pairs = self._generate_downstream(0, 8)
-
-            # Remove pairs with same base at 3' end.
-            pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
-
-            # If pairs is empty after the filter, try upstream.
-            if not pairs:
-                pairs = self._generate_upstream(0, 8)
-                pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
-
-            # Order the pairs based on
-            # 1) The number of nucleotide differences in the last 4 bases.
-            #    More differences is preferable.
-            # 2) Length of the sequences in each pair. Longer is preferable.
-            pairs = sorted(pairs,
-                           key=lambda pair: (
-                               Sequence.hamming(pair[0][-4:], pair[1][-4:]),
-                               len(pair[0])),
-                           reverse=True)
-
-            amas = pairs[0]
-
-        else:
-            raise StarpError('AMAS creation is undefined for non-substitution '
-                             'SNPs.')
-
-        return amas
-
-    def _generate_upstream(self, minimum, maximum):
-        """
-        Generates F primer pairs upstream from the SNP site.
-        For example, if minimum = 16 and maximum = 25, we grab the 16
-        through 25 nucleotides BEFORE the SNP.
-        These would be the pairs that get created.
-
-        F1                NNNNNNNNNNNNNNNNA
-        F2                NNNNNNNNNNNNNNNNB
-
-        F1               NNNNNNNNNNNNNNNNNA
-        F2               NNNNNNNNNNNNNNNNNB
-
-        F1              NNNNNNNNNNNNNNNNNNA
-        F2              NNNNNNNNNNNNNNNNNNB
-
-        F1             NNNNNNNNNNNNNNNNNNNA
-        F2             NNNNNNNNNNNNNNNNNNNB
-
-        F1            NNNNNNNNNNNNNNNNNNNNA
-        F2            NNNNNNNNNNNNNNNNNNNNB
-
-        F1           NNNNNNNNNNNNNNNNNNNNNA
-        F2           NNNNNNNNNNNNNNNNNNNNNB
-
-        F1          NNNNNNNNNNNNNNNNNNNNNNA
-        F2          NNNNNNNNNNNNNNNNNNNNNNB
-
-        F1         NNNNNNNNNNNNNNNNNNNNNNNA
-        F2         NNNNNNNNNNNNNNNNNNNNNNNB
-
-        F1        NNNNNNNNNNNNNNNNNNNNNNNNA
-        F2        NNNNNNNNNNNNNNNNNNNNNNNNB
-
-        F1       NNNNNNNNNNNNNNNNNNNNNNNNNA
-        F2       NNNNNNNNNNNNNNNNNNNNNNNNNB
-
-        In the case of insertions or deletions, see
-            'docs/how to design AMAS-primers for Indel*'
-
-        Args:
-            minimum: The shortest distance upstream to traverse.
-            maximum: The longest distance upstream to traverse.
-
-        Returns:
-            A list of tuples (F1, F2).
-
-        Raises:
-            None.
-        """
-
-        # Find the first index on the upstream that is not a '-'
-        # in allele1.
-        pos1 = self.snp.start-1
-        while self.allele1[pos1] == '-':
-            pos1 -= 1
-
-        # Find the first index on the upstream that is not a '-'
-        # in allele2.
-        pos2 = self.snp.start-1
-        while self.allele2[pos2] == '-':
-            pos2 -= 1
-
-        # Negative indices are allowed in Python, but are no good for
-        # primer creation.
-        if pos1 < 0 or pos2 < 0:
-            raise StarpError("Cannot create AMAS primers at this position.")
-
-        # Create the two lists and zip them together.
-        allele1_primers = [Primer(self.allele1[pos1-i:pos1+1], pos1-i, pos1+1, 1)
-                             for i in range(minimum, maximum)]
-        allele2_primers = [Primer(self.allele2[pos2-i:pos2+1], pos2-i, pos2+1, 1) 
-                             for i in range(minimum, maximum)]
-        pairs = zip(allele1_primers, allele2_primers)
-        print(bool(pairs))
-        return list(pairs)
-
-    def _generate_downstream(self, minimum, maximum):
-        """
-        Generates F primer pairs downstream from the SNP site. The
-        shortest primer length is minimum+1 and the longest is
-        maximum+1.
-
-        If minimum=16 and maximum=25, These are the pairs that get
-        created:
-
-        F1       ANNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNNNNNN
-
-        F1       ANNNNNNNNNNNNNNNNNNNNNNNNN
-        F2       BNNNNNNNNNNNNNNNNNNNNNNNNN
-
-
-        Args:
-            None. Uses the self attributes of the class.
-
-        Returns:
-            A list of tuples (F1, F2).
-
-        """
-
-        # Find the first position on the downstream that is not a '-'
-        # character in allele1.
-        pos1 = self.snp.start-1
-        while self.allele1[pos1] == '-':
-            pos1 += 1
-
-        # Find the first position on the downstream that is not a '-'
-        # character in allele2.
-        pos2 = self.snp.start-1
-        while self.allele2[pos2] == '-':
-            pos2 += 1
-
-        # Negative indices are allowed in Python, but are no good for
-        # primer creation.
-        if pos1 < 0 or pos2 < 0:
-            raise StarpError("Cannot create AMAS primers at this position.")
-
-        # Create the two lists and zip them together.
-        allele1_sequences = [Primer(self.allele1[pos1:pos1+i+1], pos1, pos1+i+1, 1)
-                             for i in range(minimum, maximum)]
-        allele2_sequences = [Primer(self.allele2[pos2:pos2+i+1], pos2, pos2+i+1, 1)
-                             for i in range(minimum, maximum)]
-        pairs = zip(allele1_sequences, allele2_sequences)
-
-        return list(pairs)
-
-    def _substitute_bases(self, pair):
-        """
-        Substitutes bases according to Dr. Long's instructions. This
-        only works for substitutions and is undefined for insertions
-        and deletions.
-
-        The substitution principle he defines is:
-        A -> C, T -> C, G -> A, C -> T
-
-        I've tried my best to follow along to the instructions.
-
-        To calculate the index that we need to substitute, all possible
-        combinations are put into a dictionary. Since there are
-        approximately 10*10*10*6*2 = 12,000 ways to arrange the last four
-        nucleotides of an allele allowing multiple SNPs (the 10 being 4
-        nucleotides plus 6 substitution SNPs, and the 2 being the number
-        of nucleotides that define a SNP), there must be a way to
-        reduce these combinations.
-
-        The way this has been done is by grouping nucleotides and SNPs
-        according to the following mapping:
-
-        G->G
-        C->G
-        A->A
-        T->A
-        SNPs:
-        (C/G) -> P  # Since C pairs with G and A to T, I'm mapping these
-        (A/T) -> P  # to P for Paired.
-        (C/A) -> N  # Since the next 4 SNPs contain nucleotides that do
-        (C/T) -> N  # not pair with each other, I designate them N for
-        (G/A) -> N  # Non-pair.
-        (G/T) -> N
-
-        Note that the last nucleotide is NOT mapped since its value
-        must be known. For example, the last four nucleotides of an
-        allele may be G(A/T)C(A/G). Using the mapping, this becomes
-        GPG(A/G). Or, allele1_key = GPGA and allele2_key = GPGG. Then,
-        the substitution index may be gleaned from the matrix.
-
-        Args:
-            pair: A tuple with the selected AMAS primer pair.
-
-        Returns:
-            A tuple holding the AMAS pair Sequences with substituted
-            bases.
-
-        Raises:
-            StarpError: when a non-substitution SNP is selected.
-            StarpError: when a non-substitution SNP is within last 4
-                nucleotides of the 3' end.
-        """
-
-        # Other snps in the 2nd, 3rd, or 4th positions from the chosen snp.
-        extra_snps = [s for s in self.snps
-                      if s.start > self.snp.start-4
-                      and s.start < self.snp.start]
-
-        snp = self.snp
-        amas1 = pair[0]
-        amas1_str = str(pair[0])
-        amas2 = pair[1]
-        amas2_str = str(pair[1])
-        if snp.type != "substitution":
-            raise StarpError("Cannot substitute bases on a non-substitution snp.")
-
-        if not extra_snps:
-            # There are no extra SNPs closeby to the chosen one.
-
-            sub_index = {frozenset(('C', 'G')) :
-                             {'GGGC' : -3, 'GGGG' : -2, 'GGAC' : (-3, -4), 'GGAG' : (-3, -4),
-                              'GAGC' : (-2, -4), 'GAGG' : (-2, -4), 'GAAC' : (-2, -3), 'GAAG' : (-2, -3),
-                              'AGGC' : (-2, -3), 'AGGG' : (-2, -3), 'AGAC' : (-2, -4), 'AGAG' : (-2, -4),
-                              'AAGC' : (-3, -4), 'AAGG' : (-3, -4), 'AAAC' : -3, 'AAAG' : -2},
-                         frozenset(('C', 'T')) :
-                             {'GGGC' : -2, 'GGGT' : -3, 'GGAC' : -4, 'GGAT' : -3,
-                              'GAGC' : -2, 'GAGT' : -4, 'GAAC' : -2, 'GAAT' : -3,
-                              'AGGC' : -2, 'AGGT' : -3, 'AGAC' : -2, 'AGAT' : -4,
-                              'AAGC' : -4, 'AAGT' : -3, 'AAAC' : -2, 'AAAT' : -3},
-                         frozenset(('C', 'A')) :
-                             {'GGGC' : -2, 'GGGA' : -3, 'GGAC' : -3, 'GGAA' : -4,
-                              'GAGC' : -2, 'GAGA' : -4, 'GAAC' : -2, 'GAAA' : -3,
-                              'AGGC' : -2, 'AGGA' : -3, 'AGAC' : -2, 'AGAA' : -4,
-                              'AAGC' : -3, 'AAGA' : -4, 'AAAC' : -2, 'AAAA' : -3},
-                         frozenset(('G', 'T')) :
-                             {'GGGG' : -2, 'GGGT' : -3, 'GGAG' : -4, 'GGAT' : -3,
-                              'GAGG' : -2, 'GAGT' : -4, 'GAAG' : -2, 'GAAT' : -4,
-                              'AGGG' : -2, 'AGGT' : -3, 'AGAG' : -2, 'AGAT' : -4,
-                              'AAGG' : -4, 'AAGT' : -3, 'AAAG' : -2, 'AAAT' : -2},
-                         frozenset(('G', 'A')) :
-                             {'GGGG' : -2, 'GGGA' : -3, 'GGAG' : -3, 'GGAA' : -4,
-                              'GAGG' : -2, 'GAGA' : -4, 'GAAG' : -2, 'GAAA' : -3,
-                              'AGGG' : -2, 'AGGA' : -3, 'AGAG' : -2, 'AGAA' : -4,
-                              'AAGG' : -3, 'AAGA' : -4, 'AAAG' : -2, 'AAAA' : -3},
-                         frozenset(('A', 'T')) :
-                             {'GGGT' : -3, 'GGGA' : -4, 'GGAT' : -3, 'GGAA' : -4,
-                              'GAGT' : -2, 'GAGA' : -4, 'GAAT' : -2, 'GAAA' : -3,
-                              'AGGT' : -2, 'AGGA' : -3, 'AGAT' : -2, 'AGAA' : -4,
-                              'AAGT' : -3, 'AAGA' : -4, 'AAAT' : -3, 'AAAA' : -4}}
-
-            # There are some patterns to Dr. Long's substitution instructions.
-            #
-            # 1) He only considers the last 4 nucleotides.
-            # 2) He regularly refers to G and C together, and A at T together. So,
-            #    mapping these to a common value reduces the number of keys we
-            #    need to consider. The mapping is: C,G -> G and A,T -> T.
-            # 3) The allele also matters. In a G/C SNP, one allele has a G and
-            #    one has a C, for example. When generate_upstream() is called,
-            #    this value is naturally at the end. However, generate_downstream()
-            #    has the value at the start. For consistency, place it at the end.
-            #    This reduces the size of the dictionary by half.
-
-            # This key structure encodes a lot of information. His two pages of
-            # solid text for the case of no other SNPs at the 3' end can be
-            # defined in just 29 (long) lines of code.
-
-            allele1_key = (amas1_str[-4:-1].replace('C', 'G').replace('T', 'A')
-                           + snp.ref_nucleotide)
-            allele2_key = (amas2_str[-4:-1].replace('C', 'G').replace('T', 'A')
-                           + snp.new_nucleotide)
-
-            amas1 = Primer(_substitute(amas1_str, sub_index[snp.nucleotides][allele1_key]),
-                           amas1.start, amas1.end, amas1.strand)
-            amas2 = Primer(_substitute(amas2_str, sub_index[snp.nucleotides][allele2_key]),
-                           amas2.start, amas2.end, amas2.strand)
-
-        elif len(extra_snps) == 1:
-            other = extra_snps[0]
-            if other.type is not "substitution":
-                raise StarpError("Cannot substitute bases if a non-substitution snp is nearby.")
-
-            # What the 4-tuple means:
-            # Let it be ('CG', -4, 'AT', -3)
-            # Then, if the allele has a C or G in the additional SNP position,
-            # then substitute the -4th index. If it has an A or T in the
-            # additional SNP position, substitute the -3 index.
-
-            sub_index = {frozenset(('C', 'G')) :
-                             {'GGPC' : -4, 'GGPG' : -3, 'GGNC' : -4, 'GGNG' : -3,
-                              'GAPC' : -4, 'GAPG' : -3, 'GANC' : ('CG', -4, 'AT', -3), 'GANG' : ('CG', -4, 'AT', -3),
-                              'AGPC' : -4, 'AGPG' : -3, 'AGNC' : ('CG', -3, 'AT', -4), 'AGNG' : ('CG', -3, 'AT', -4),
-                              'AAPC' : -4, 'AAPG' : -3, 'AANC' : -4, 'AANG' : -3,
-                              'GPGC' : -4, 'GPGG' : -2, 'GPAC' : -4, 'GPAG' : -2,
-                              'GNGC' : -4, 'GNGG' : -2, 'GNAC' : ('CG', -4, 'AT', -2), 'GNAG' : ('CG', -4, 'AT', -2),
-                              'APGC' : -4, 'APGG' : -2, 'APAC' : -4, 'APAG' : -2,
-                              'ANGC' : ('CG', -2, 'AT', -4), 'ANGG' : ('CG', -2, 'AT', -4), 'ANAC' : -4, 'ANAG' : -2,
-                              'PGGC' : -3, 'PGGG' : -2, 'PGAC' : -3, 'PGAG' : -2,
-                              'PAGC' : -3, 'PAGG' : -2, 'PAAC' : -3, 'PAAG' : -2,
-                              'NGGC' : -3, 'NGGG' : -2, 'NGAC' : ('CG', -3, 'AT', -2), 'NGAG' : ('CG', -3, 'AT', -2),
-                              'NAGC' : ('CG', -2, 'AT', -3), 'NAGG' : ('CG', -2, 'AT', -3), 'NAAC' : -3, 'NAAG' : -2},
-                         frozenset(('C', 'T')) : {
-                             'GGPC' : -4, 'GGPT' : -3, 'GGNC' : -4, 'GGNT' : -3,
-                             'GAPC' : -4, 'GAPT' : -3, 'GANC' : ('CG', -4, 'AT', -4), 'GANT' : ('CG', -3, 'AT', -3),
-                             'AGPC' : -3, 'AGPT' : -4, 'AGNC' : ('CG', -3, 'AT', -4), 'AGNT' : ('CG', -3, 'AT', -4),
-                             'AAPC' : -4, 'AAPT' : -3, 'AANC' : -4, 'AANT' : -3,
-                             'GPGC' : -2, 'GPGT' : -4, 'GPAC' : -4, 'GPAT' : -2,
-                             'GNGC' : -2, 'GNGT' : -4, 'GNAC' : ('CG', -4, 'AT', -2), 'GNAT' : ('CG', -4, 'AT', -2),
-                             'APGC' : -2, 'APGT' : -4, 'APAC' : -2, 'APAT' : -4,
-                             'ANGC' : ('CG', -2, 'AT', -2), 'ANGT' : ('CG', -4, 'AT', -4), 'ANAC' : -2, 'ANAT' : -4,
-                             'PGGC' : -2, 'PGGT' : -4, 'PGAC' : -3, 'PGAT' : -2,
-                             'PAGC' : -2, 'PAGT' : -3, 'PAAC' : -2, 'PAAT' : -3,
-                             'NGGC' : -2, 'NGGT' : -3, 'NGAC' : ('CG', -3, 'AT', -2), 'NGAT' : ('CG', -3, 'AT', -2),
-                             'NAGC' : ('CG', -2, 'AT', -2), 'NAGT' : ('CG', -3, 'AT', -3), 'NAAC' : -2, 'NAAT' : -3},
-                         frozenset(('C', 'A')) : {
-                             'GGPC' : -3, 'GGPA' : -4, 'GGNC' : -3, 'GGNA' : -4,
-                             'GAPC' : -4, 'GAPA' : -3, 'GANC' : ('CG', -4, 'AT', -3), 'GANA' : ('CG', -4, 'AT', -3),
-                             'AGPC' : -3, 'AGPA' : -4, 'AGNC' : ('CG', -3, 'AT', -3), 'AGNA' : ('CG', -4, 'AT', -4),
-                             'AAPC' : -3, 'AAPA' : -4, 'AANC' : -3, 'AANA' : -4,
-                             'GPGC' : -2, 'GPGA' : -4, 'GPAC' : -4, 'GPAA' : -2,
-                             'GNGC' : -2, 'GNGA' : -4, 'GNAC' : ('CG', -4, 'AT', -2), 'GNAA' : ('CG', -4, 'AT', -2),
-                             'APGC' : -2, 'APGA' : -4, 'APAC' : -2, 'APAA' : -4,
-                             'ANGC' : ('CG', -2, 'AT', -2), 'ANGA' : ('CG', -4, 'AT', -4), 'ANAC' : -2, 'ANAA' : -4,
-                             'PGGC' : -2, 'PGGA' : -3, 'PGAC' : -3, 'PGAA' : -2,
-                             'PAGC' : -2, 'PAGA' : -3, 'PAAC' : -2, 'PAAA' : -3,
-                             'NGGC' : -2, 'NGGA' : -3, 'NGAC' : ('CG', -3, 'AT', -2), 'NGAA' : ('CG', -3, 'AT', -2),
-                             'NAGC' : ('CG', -2, 'AT', -2), 'NAGA' : ('CG', -3, 'AT', -3), 'NAAC' : -2, 'NAAA' : -3},
-                         frozenset(('G', 'T')) : {
-                             'GGPT' : -3, 'GGPG' : -4, 'GGNT' : -3, 'GGNG' : -4,
-                             'GAPT' : -3, 'GAPG' : -4, 'GANT' : ('CG', -3, 'AT', -3), 'GANG' : ('CG', -4, 'AT', -4),
-                             'AGPT' : -4, 'AGPG' : -3, 'AGNT' : ('CG', -3, 'AT', -4), 'AGNG' : ('CG', -3, 'AT', -4),
-                             'AAPT' : -3, 'AAPG' : -4, 'AANT' : -3, 'AANG' : -4,
-                             'GPGT' : -4, 'GPGG' : -2, 'GPAT' : -2, 'GPAG' : -4,
-                             'GNGT' : -4, 'GNGG' : -2, 'GNAT' : ('CG', -4, 'AT', -2), 'GNAG' : ('CG', -4, 'AT', -2),
-                             'APGT' : -4, 'APGG' : -2, 'APAT' : -4, 'APAG' : -2,
-                             'ANGT' : ('CG', -4, 'AT', -4), 'ANGG' : ('CG', -2, 'AT', -2), 'ANAT' : -4, 'ANAG' : -2,
-                             'PGGT' : -3, 'PGGG' : -2, 'PGAT' : -2, 'PGAG' : -3,
-                             'PAGT' : -3, 'PAGG' : -2, 'PAAT' : -3, 'PAAG' : -2,
-                             'NGGT' : -3, 'NGGG' : -2, 'NGAT' : ('CG', -3, 'AT', -2), 'NGAG' : ('CG', -3, 'AT', -2),
-                             'NAGT' : ('CG', -3, 'AT', -3), 'NAGG' : ('CG', -2, 'AT', -2), 'NAAT' : -3, 'NAAG' : -2},
-                         frozenset(('G', 'A')) : {
-                             'GGPA' : -4, 'GGPG' : -3, 'GGNA' : -4, 'GGNG' : -3,
-                             'GAPA' : -3, 'GAPG' : -4, 'GANA' : ('CG', -4, 'AT', -3), 'GANG' : ('CG', -4, 'AT', -3),
-                             'AGPA' : -4, 'AGPG' : -3, 'AGNA' : ('CG', -4, 'AT', -4), 'AGNG' : ('CG', -3, 'AT', -3),
-                             'AAPA' : -4, 'AAPG' : -3, 'AANA' : -4, 'AANG' : -3,
-                             'GPGA' : -4, 'GPGG' : -2, 'GPAA' : -2, 'GPAG' : -4,
-                             'GNGA' : -4, 'GNGG' : -2, 'GNAA' : ('CG', -4, 'AT', -2), 'GNAG' : ('CG', -4, 'AT', -2),
-                             'APGA' : -4, 'APGG' : -2, 'APAA' : -4, 'APAG' : -2,
-                             'ANGA' : ('CG', -4, 'AT', -4), 'ANGG' : ('CG', -2, 'AT', -2), 'ANAA' : -4, 'ANAG' : -2,
-                             'PGGA' : -3, 'PGGG' : -2, 'PGAA' : -2, 'PGAG' : -3,
-                             'PAGA' : -3, 'PAGG' : -2, 'PAAA' : -3, 'PAAG' : -2,
-                             'NGGA' : -3, 'NGGG' : -2, 'NGAA' : ('CG', -3, 'AT', -2), 'NGAG' : ('CG', -3, 'AT', -2),
-                             'NAGA' : ('CG', -3, 'AT', -3), 'NAGG' : ('CG', -2, 'AT', -2), 'NAAA' : -3, 'NAAG' : -2},
-                         frozenset(('A', 'T')) : {
-                             'GGPA' : -4, 'GGPT' : -3, 'GGNA' : -4, 'GGNT' : -3,
-                             'GAPA' : -4, 'GAPT' : -3, 'GANA' : ('CG', -4, 'AT', -3), 'GANT' : ('CG', -4, 'AT', -3),
-                             'AGPA' : -4, 'AGPT' : -3, 'AGNA' : ('CG', -3, 'AT', -4), 'AGNT' : ('CG', -3, 'AT', -4),
-                             'AAPA' : -4, 'AAPT' : -3, 'AANA' : -4, 'AANT' : -3,
-                             'GPGA' : -4, 'GPGT' : -2, 'GPAA' : -4, 'GPAT' : -2,
-                             'GNGA' : -4, 'GNGT' : -2, 'GNAA' : ('CG', -4, 'AT', -2), 'GNAT' : ('CG', -4, 'AT', -2),
-                             'APGA' : -4, 'APGT' : -2, 'APAA' : -4, 'APAT' : -2,
-                             'ANGA' : ('CG', -2, 'AT', -4), 'ANGT' : ('CG', -2, 'AT', -4), 'ANAA' : -4, 'ANAT' : -2,
-                             'PGGA' : -3, 'PGGT' : -2, 'PGAA' : -3, 'PGAT' : -2,
-                             'PAGA' : -3, 'PAGT' : -2, 'PAAA' : -3, 'PAAT' : -2,
-                             'NGGA' : -3, 'NGGT' : -2, 'NGAA' : ('CG', -3, 'AT', -2), 'NGAT' : ('CG', -3, 'AT', -2),
-                             'NAGA' : ('CG', -2, 'AT', -3), 'NAGT' : ('CG', -2, 'AT', -2), 'NAAA' : -3, 'NAAT' : -2}}
-
-            # See the case above for an explanation of this.
-            allele1_key = (amas1_str[-4:-1].replace('C', 'G').replace('T', 'A')
-                           + snp.ref_nucleotide)
-            allele2_key = (amas2_str[-4:-1].replace('C', 'G').replace('T', 'A')
-                           + snp.new_nucleotide)
-
-            # Other SNP relative position.
-            # If the other SNP is at the 3rd index from the end, then this
-            # value is set to -3, for example.
-            other_snp_rel_pos = other.start - snp.start - 1
-
-            # Convert the allele*_end to a format which can query the
-            # substitution dictionary.
-            if other.nucleotides == {'C', 'G'} or other.nucleotides == {'A', 'T'}:
-                placeholder = 'P'
-            else:
-                placeholder = 'N'
-
-            allele1_key = list(allele1_key)
-            allele1_key[other_snp_rel_pos] = placeholder
-            allele1_key = ''.join(allele1_key)
-
-            allele2_key = list(allele2_key)
-            allele2_key[other_snp_rel_pos] = placeholder
-            allele2_key = ''.join(allele2_key)
-
-            index_to_substitute1 = sub_index[allele1_key]
-            index_to_substitute2 = sub_index[allele2_key]
-
-            # Deal with the output of sub_index if it returns a tuple
-            # like ('CG', -2, 'AT', -3).
-            if isinstance(index_to_substitute1, tuple):
-                sub_iter = iter(index_to_substitute1)
-                if other.ref_nucleotide == next(sub_iter):
-                    index_to_substitute1 = next(sub_iter)
-                else:
-                    next(sub_iter)
-                    next(sub_iter)
-                    index_to_substitute1 = next(sub_iter)
-
-            if isinstance(index_to_substitute2, tuple):
-                sub_iter = iter(index_to_substitute2)
-                if other.new_nucleotide == next(sub_iter):
-                    index_to_substitute2 = next(sub_iter)
-                else:
-                    next(sub_iter)
-                    next(sub_iter)
-                    index_to_substitute2 = next(sub_iter)
-
-            amas1 = Primer(_substitute(amas1_str, index_to_substitute1), amas1.start, amas1.end, amas1.strand)
-            amas2 = Primer(_substitute(amas2_str, index_to_substitute2), amas2.start, amas2.end, amas2.strand)
-
-        else:
-            # No substitutions necessary.
-            pass
-
-        return (amas1, amas2)
-
-def _best_pair(pairs):
+from .models import Sequence, Snp, AmasPrimer
+
+# G/C -> S and A/T -> W
+
+# What the 4-tuple means:
+# Let it be ('CG', -4, 'AT', -3)
+# Then, if the allele has a C or G in the additional SNP position,
+# then substitute the -4th index. If it has an A or T in the
+# additional SNP position, substitute the -3 index.
+sub_index_one_snp = {
+    frozenset(('C', 'G')) : {
+        'SSSC' : -3, 'SSSG' : -2, 'SSWC' : (-3, -4), 'SSWG' : (-3, -4),
+        'SWSC' : (-2, -4), 'SWSG' : (-2, -4), 'SWWC' : (-2, -3), 'SWWG' : (-2, -3),
+        'WSSC' : (-2, -3), 'WSSG' : (-2, -3), 'WSWC' : (-2, -4), 'WSWG' : (-2, -4),
+        'WWSC' : (-3, -4), 'WWSG' : (-3, -4), 'WWWC' : -3, 'WWWG' : -2},
+    frozenset(('C', 'T')) : {
+        'SSSC' : -2, 'SSST' : -3, 'SSWC' : -4, 'SSWT' : -3,
+        'SWSC' : -2, 'SWST' : -4, 'SWWC' : -2, 'SWWT' : -3,
+        'WSSC' : -2, 'WSST' : -3, 'WSWC' : -2, 'WSWT' : -4,
+        'WWSC' : -4, 'WWST' : -3, 'WWWC' : -2, 'WWWT' : -3},
+    frozenset(('C', 'A')) : {
+        'SSSC' : -2, 'SSSA' : -3, 'SSWC' : -3, 'SSWA' : -4,
+        'SWSC' : -2, 'SWSA' : -4, 'SWWC' : -2, 'SWWA' : -3,
+        'WSSC' : -2, 'WSSA' : -3, 'WSWC' : -2, 'WSWA' : -4,
+        'WWSC' : -3, 'WWSA' : -4, 'WWWC' : -2, 'WWWA' : -3},
+    frozenset(('G', 'T')) : {
+        'SSSG' : -2, 'SSST' : -3, 'SSWG' : -4, 'SSWT' : -3,
+        'SWSG' : -2, 'SWST' : -4, 'SWWG' : -2, 'SWWT' : -4,
+        'WSSG' : -2, 'WSST' : -3, 'WSWG' : -2, 'WSWT' : -4,
+        'WWSG' : -4, 'WWST' : -3, 'WWWG' : -2, 'WWWT' : -2},
+    frozenset(('G', 'A')) : {
+        'SSSG' : -2, 'SSSA' : -3, 'SSWG' : -3, 'SSWA' : -4,
+        'SWSG' : -2, 'SWSA' : -4, 'SWWG' : -2, 'SWWA' : -3,
+        'WSSG' : -2, 'WSSA' : -3, 'WSWG' : -2, 'WSWA' : -4,
+        'WWSG' : -3, 'WWSA' : -4, 'WWWG' : -2, 'WWWA' : -3},
+    frozenset(('A', 'T')) : {
+        'SSST' : -3, 'SSSA' : -4, 'SSWT' : -3, 'SSWA' : -4,
+        'SWST' : -2, 'SWSA' : -4, 'SWWT' : -2, 'SWWA' : -3,
+        'WSST' : -2, 'WSSA' : -3, 'WSWT' : -2, 'WSWA' : -4,
+        'WWST' : -3, 'WWSA' : -4, 'WWWT' : -3, 'WWWA' : -4}}
+
+sub_index_two_snps = {
+    frozenset(('C', 'G')) : {
+        'SSPC' : -4, 'SSPG' : -3, 'SSNC' : -4, 'SSNG' : -3,
+        'SWPC' : -4, 'SWPG' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
+        'WSPC' : -4, 'WSPG' : -3, 'WSNC' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'WWPC' : -4, 'WWPG' : -3, 'WWNC' : -4, 'WWNG' : -3,
+        'SPSC' : -4, 'SPSG' : -2, 'SPWC' : -4, 'SPWG' : -2,
+        'SNSC' : -4, 'SNSG' : -2, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'WPSC' : -4, 'WPSG' : -2, 'WPWC' : -4, 'WPWG' : -2,
+        'WNSC' : ('CG', -2, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -4), 'WNWC' : -4, 'WNWG' : -2,
+        'PSSC' : -3, 'PSSG' : -2, 'PSWC' : -3, 'PSWG' : -2,
+        'PWSC' : -3, 'PWSG' : -2, 'PWWC' : -3, 'PWWG' : -2,
+        'NSSC' : -3, 'NSSG' : -2, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
+        'NWSC' : ('CG', -2, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -3), 'NWWC' : -3, 'NWWG' : -2},
+    frozenset(('C', 'T')) : {
+        'SSPC' : -4, 'SSPT' : -3, 'SSNC' : -4, 'SSNT' : -3,
+        'SWPC' : -4, 'SWPT' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNT' : ('CG', -4, 'AT', -3),
+        'WSPC' : -3, 'WSPT' : -4, 'WSNC' : ('CG', -3, 'AT', -4), 'WSNT' : ('CG', -3, 'AT', -4),
+        'WWPC' : -4, 'WWPT' : -3, 'WWNC' : -4, 'WWNT' : -3,
+        'SPSC' : -2, 'SPST' : -4, 'SPWC' : -4, 'SPWT' : -2,
+        'SNSC' : -2, 'SNST' : -4, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWT' : ('CG', -4, 'AT', -2),
+        'WPSC' : -2, 'WPST' : -4, 'WPWC' : -2, 'WPWT' : -4,
+        'WNSC' : ('CG', -2, 'AT', -2), 'WNST' : ('CG', -4, 'AT', -4), 'WNWC' : -2, 'WNWT' : -4,
+        'PSSC' : -2, 'PSST' : -4, 'PSWC' : -3, 'PSWT' : -2,
+        'PWSC' : -2, 'PWST' : -3, 'PWWC' : -2, 'PWWT' : -3,
+        'NSSC' : -2, 'NSST' : -3, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWT' : ('CG', -3, 'AT', -2),
+        'NWGC' : ('CG', -2, 'AT', -2), 'NWGT' : ('CG', -3, 'AT', -3), 'NWWC' : -2, 'NWWT' : -3},
+    frozenset(('C', 'A')) : {
+        'SSPC' : -3, 'SSPA' : -4, 'SSNC' : -3, 'SSNA' : -4,
+        'SWPC' : -4, 'SWPA' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNA' : ('CG', -4, 'AT', -3),
+        'WSPC' : -3, 'WSPA' : -4, 'WSNC' : ('CG', -3, 'AT', -3), 'WSNA' : ('CG', -4, 'AT', -4),
+        'WWPC' : -3, 'WWPA' : -4, 'WWNC' : -3, 'WWNA' : -4,
+        'SPSC' : -2, 'SPSA' : -4, 'SPWC' : -4, 'SPWA' : -2,
+        'SNSC' : -2, 'SNSA' : -4, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWA' : ('CG', -4, 'AT', -2),
+        'WPSC' : -2, 'WPSA' : -4, 'WPWC' : -2, 'WPWA' : -4,
+        'WNSC' : ('CG', -2, 'AT', -2), 'WNSA' : ('CG', -4, 'AT', -4), 'WNWC' : -2, 'WNWA' : -4,
+        'PSSC' : -2, 'PSSA' : -3, 'PSWC' : -3, 'PSWA' : -2,
+        'PWSC' : -2, 'PWSA' : -3, 'PWWC' : -2, 'PWWA' : -3,
+        'NSSC' : -2, 'NSSA' : -3, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWA' : ('CG', -3, 'AT', -2),
+        'NWSC' : ('CG', -2, 'AT', -2), 'NWSA' : ('CG', -3, 'AT', -3), 'NWWC' : -2, 'NWWA' : -3},
+    frozenset(('G', 'T')) : {
+        'SSPT' : -3, 'SSPG' : -4, 'SSNT' : -3, 'SSNG' : -4,
+        'SWPT' : -3, 'SWPG' : -4, 'SWNT' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
+        'WSPT' : -4, 'WSPG' : -3, 'WSNT' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'WWPT' : -3, 'WWPG' : -4, 'WWNT' : -3, 'WWNG' : -4,
+        'SPST' : -4, 'SPSG' : -2, '..W.' : -2, 'SPWG' : -4,
+        'SNST' : -4, 'SNSG' : -2, 'SNWT' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'WPST' : -4, 'WPSG' : -2, 'WPWT' : -4, 'WPWG' : -2,
+        'WNST' : ('CG', -4, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -2), 'WNWT' : -4, 'WNWG' : -2,
+        'PSST' : -3, 'PSSG' : -2, 'PSWT' : -2, 'PSWG' : -3,
+        'PWST' : -3, 'PWSG' : -2, 'PWWT' : -3, 'PWWG' : -2,
+        'NSST' : -3, 'NSSG' : -2, 'NSWT' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
+        'NWST' : ('CG', -3, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -2), 'NWWT' : -3, 'NWWG' : -2},
+    frozenset(('G', 'A')) : {
+        'SSPA' : -4, 'SSPG' : -3, 'SSNA' : -4, 'SSNG' : -3,
+        'SWPA' : -3, 'SWPG' : -4, 'SWNA' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
+        'WSPA' : -4, 'WSPG' : -3, 'WSNA' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'WWPA' : -4, 'WWPG' : -3, 'WWNA' : -4, 'WWNG' : -3,
+        'SPSA' : -4, 'SPSG' : -2, 'SPWA' : -2, 'SPWG' : -4,
+        'SNSA' : -4, 'SNSG' : -2, 'SNWA' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'WPSA' : -4, 'WPSG' : -2, 'WPWA' : -4, 'WPWG' : -2,
+        'WNSA' : ('CG', -4, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -2), 'WNWA' : -4, 'WNWG' : -2,
+        'PSSA' : -3, 'PSSG' : -2, 'PSWA' : -2, 'PSWG' : -3,
+        'PWSA' : -3, 'PWSG' : -2, 'PWWA' : -3, 'PWWG' : -2,
+        'NSSA' : -3, 'NSSG' : -2, 'NSWA' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
+        'NWSA' : ('CG', -3, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -2), 'NWWA' : -3, 'NWWG' : -2},
+    frozenset(('A', 'T')) : {
+        'SSPA' : -4, 'SSPT' : -3, 'SSNA' : -4, 'SSNT' : -3,
+        'SWPA' : -4, 'SWPT' : -3, 'SWNA' : ('CG', -4, 'AT', -3), 'SWNT' : ('CG', -4, 'AT', -3),
+        'WSPA' : -4, 'WSPT' : -3, 'WSNA' : ('CG', -3, 'AT', -4), 'WSNT' : ('CG', -3, 'AT', -4),
+        'WWPA' : -4, 'WWPT' : -3, 'WWNA' : -4, 'WWNT' : -3,
+        'SPSA' : -4, 'SPST' : -2, 'SPWA' : -4, 'SPWT' : -2,
+        'SNSA' : -4, 'SNST' : -2, 'SNWA' : ('CG', -4, 'AT', -2), 'SNWT' : ('CG', -4, 'AT', -2),
+        'WPSA' : -4, 'WPST' : -2, 'WPWA' : -4, 'WPWT' : -2,
+        'WNSA' : ('CG', -2, 'AT', -4), 'WNST' : ('CG', -2, 'AT', -4), 'WNWA' : -4, 'WNWT' : -2,
+        'PSSA' : -3, 'PSST' : -2, 'PSWA' : -3, 'PSWT' : -2,
+        'PWSA' : -3, 'PWST' : -2, 'PWWA' : -3, 'PWWT' : -2,
+        'NSSA' : -3, 'NSST' : -2, 'NSWA' : ('CG', -3, 'AT', -2), 'NSWT' : ('CG', -3, 'AT', -2),
+        'NWSA' : ('CG', -2, 'AT', -3), 'NWST' : ('CG', -2, 'AT', -3), 'NWWA' : -3, 'NWWT' : -2}}
+
+def best_pair(pairs):
     """
     Chooses the best AMAS primer pair.
     The best pair is the one with an average melting temperature
@@ -574,7 +169,7 @@ def _best_pair(pairs):
 
     return best_pair
 
-def _substitute(allele, idx):
+def substitute(allele, idx):
     """
     Substitutes the given index of the allele according to the
     mapping nucleotide_sub. This is necessary because strings
@@ -582,7 +177,7 @@ def _substitute(allele, idx):
 
     Args:
         allele: the Sequence object to modify
-        idx: an index or tuple of the indices to change.
+        idx: an integer or tuple of the indices to change.
 
     Returns:
         The modified allele as a Sequence object.
@@ -599,3 +194,223 @@ def _substitute(allele, idx):
         allele[i] = nucleotide_sub[allele[i]]
 
     return Sequence(''.join(allele))
+
+def stretch_downstream(sequence, idx, length):
+    """
+    Dr. Long calls this technique "stretching", where you grab only the
+    nucleotides and skip over any indel characters ('-'). For example,
+    with sequence='A--GTACGGACT', idx=0, and length=4, we grab 'AGTA'.
+    """
+
+    important_seq = str(sequence[idx:]).replace('-', '')
+    important_seq = important_seq.replace('-', '')
+    try:
+        stretched_seq = Sequence(important_seq[:length])
+    except IndexError:
+        raise StarpError('Unable to create Starp primers here.')
+
+    return stretched_seq
+
+def seq_to_ambiguity_code(sequence: str):
+    """ Converts 'C' and 'G' to 'S', and 'A'/'T' to 'W' as defined by
+    http://www.reverse-complement.com/ambiguity.html
+
+    Note that these are not being used to designate SNPs. In Dr. Long's
+    instructions, many times he asks for a count of how many G/C bases
+    are in a certain sequence, and this function reduces the sizes of
+    the already massive dictionaries above.
+    """
+    return (sequence.replace('C', 'S').replace('G', 'S')
+            .replace('A', 'W').replace('T', 'W'))
+
+def generate_amas_for_substitution(allele1, allele2, position, snps):
+    """ Does not substitute any bases.
+    pos(ition) is relative to allele1, zero-indexed.
+    """
+    adj_position = convert_position(position, snps)
+
+    pairs = zip(generate_amas_upstream(allele1, 1, position, 16, 26),
+                generate_amas_upstream(allele2, 2, adj_position, 16, 26))
+    pair = best_pair(pairs)
+
+    # The instructions say to check downstream as well, but the following
+    # instructions are extremely vague and ill-defined so it has been
+    # left out for now.
+
+    if pair is None:
+        raise StarpError('Cannot find Starp primers at this location.')
+
+    return pair
+
+def generate_amas_for_indel(allele1, allele2, position, snps):
+    """ Does not substitute any bases.
+    Based off of
+    'how to design AMA-primers for Indel_20191125[3981].pptx' """
+    adj_position = convert_position(position, snps)
+
+    pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
+                generate_amas_downstream(allele2, 2, adj_position, 1, 9))
+
+    # Remove the allele pairs having same base at 3' end
+    pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
+
+    # The instructions say that if the allele pair number is 0, then try
+    # the other variation locus. But, it is unclear what the variation
+    # locus is.
+
+    # Order the pairs based on
+    # 1) The number of nucleotide differences in the last 4 bases.
+    #    More differences is preferable.
+    # 2) Length of the sequences in each pair. Longer is preferable.
+
+    pairs = sorted(pairs,
+                   key=lambda pair: (
+                       Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                       len(pair[0])),
+                   reverse=True)
+
+    if not pairs:
+        raise StarpError('Cannot find Starp primers at this location.')
+
+    return pairs[0]
+
+def generate_amas_upstream(allele, allele_num, idx, minimum, maximum):
+    return [AmasPrimer(str(allele[idx-size:idx+1]), allele_num, (idx-size, idx+1))
+            for size in range(minimum, maximum)
+            if idx-size >= 0]
+
+def generate_amas_downstream(allele, allele_num, idx, minimum, maximum):
+    return [AmasPrimer(str(allele[idx:idx+size+1]), allele_num, (idx, idx+size+1))
+            for size in range(minimum, maximum)
+            if idx+size < len(allele)]
+
+def substitute_bases(pair, snp):
+    """
+    Substitutes bases according to Dr. Long's instructions. This
+    only works for substitutions and is undefined for insertions
+    and deletions.
+
+    The substitution principle he defines is:
+    A -> C, T -> C, G -> A, C -> T
+
+    I've tried my best to follow along to the instructions.
+
+    To calculate the index that we need to substitute, all possible
+    combinations are put into a dictionary. Since there are
+    approximately 10*10*10*6*2 = 12,000 ways to arrange the last four
+    nucleotides of an allele allowing multiple SNPs (the 10 being 4
+    nucleotides plus 6 substitution SNPs, and the 2 being the number
+    of nucleotides that define a SNP), there must be a way to
+    reduce these combinations.
+
+    The way this has been done is by grouping nucleotides and SNPs
+    according to the following mapping:
+
+    G->G
+    C->G
+    A->A
+    T->A
+    SNPs:
+    (C/G) -> P  # Since C pairs with G and A to T, I'm mapping these
+    (A/T) -> P  # to P for Paired.
+    (C/A) -> N  # Since the next 4 SNPs contain nucleotides that do
+    (C/T) -> N  # not pair with each other, I designate them N for
+    (G/A) -> N  # Non-pair.
+    (G/T) -> N
+
+    Note that the last nucleotide is NOT mapped since its value
+    must be known. For example, the last four nucleotides of an
+    allele may be G(A/T)C(A/G). Using the mapping, this becomes
+    GPG(A/G). Or, allele1_key = GPGA and allele2_key = GPGG. Then,
+    the substitution index may be gleaned from the matries.
+
+    This method works for both substitutions and indels.
+    """
+    local_snps = list()
+    for i in range(-4, -1):
+        if pair[0][i] != pair[1][i]:
+            descriptor = f'.0{pair[0][i]}>{pair[1][i]}'
+            local_snps.append(Snp(descriptor))
+
+    if len(local_snps) == 0:
+        new_amas1, new_amas2 = substitute_with_one_snp(pair, snp)
+        pair[0].sequence = new_amas1
+        pair[1].sequence = new_amas2
+    elif len(local_snps) == 1:
+        new_amas1, new_amas2 = substitute_with_two_snps(pair, snp, local_snps[0])
+        pair[0].sequence = new_amas1
+        pair[1].sequence = new_amas2
+
+    return pair
+
+def convert_position(pos, snps):
+    """ Snp positions are given relative to allele1, so this function
+    converts them into the corresponding position on allele2. """
+    del_count = len([snp for snp in snps
+                     if snp.position < pos and snp.type == 'insertion'])
+    ins_count = len([snp for snp in snps
+                     if snp.position < pos and snp.type == 'deletion'])
+
+    return pos - del_count + ins_count
+
+def substitute_with_one_snp(pair, snp):
+    """
+    http://www.reverse-complement.com/ambiguity.html
+    Ambiguity codes:
+    G/C = S
+    A/T = W
+
+    Args:
+        pair: A tuple of same-length strings or sequences.
+
+    Returns:
+        A 2-tuple of the pair with appropriate bases substituted
+            of type Sequence.
+    """
+
+    pair = (str(pair[0]), str(pair[1]))
+
+    # The only Snp between the two sequences is at the last index.
+    code = seq_to_ambiguity_code(pair[0][-4:-1]) + pair[0][-1]
+    idx_to_sub = sub_index_one_snp[snp.nucleotides][code]
+    seq1 = substitute(pair[0], idx_to_sub)
+
+    code = seq_to_ambiguity_code(pair[1][-4:-1]) + pair[1][-1]
+    idx_to_sub = sub_index_one_snp[snp.nucleotides][code]
+    seq2 = substitute(pair[1], idx_to_sub)
+
+    return (seq1, seq2)
+
+def substitute_with_two_snps(pair, snp, extra_snp):
+    """
+    other_snp is the second snp towards the end that is not
+    the final snp.
+
+    Many times we only need to differentiate between a C/G or A/T snp,
+    and all the rest. To do this, replace the Snp index with a P if it
+    is a C/G or A/T snp (P for Paired) and N for all the rest.
+    """
+    pair = (str(pair[0]), str(pair[1]))
+    seq1 = str(pair[0])
+    seq2 = str(pair[1])
+
+    if extra_snp.nucleotides == {'C', 'G'} or extra_snp.nucleotides == {'A', 'T'}:
+        placeholder = 'P'
+    else:
+        placeholder = 'N'
+
+    seq1 = list(pair[0])
+    seq1[extra_snp.position] = placeholder
+    seq1 = ''.join(seq1)
+    code = seq_to_ambiguity_code(pair[0][-4:-1]) + pair[0][-1]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
+    seq1 = substitute(seq1, idx_to_sub)
+
+    seq2 = list(pair[1])
+    seq2[extra_snp.position] = placeholder
+    seq2 = ''.join(seq2)
+    code = seq_to_ambiguity_code(pair[1][-4:-1]) + pair[1][-1]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
+    seq2 = substitute(seq2, idx_to_sub)
+
+    return (seq1, seq2)

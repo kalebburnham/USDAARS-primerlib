@@ -15,7 +15,7 @@
 
     "f" : {
         "sequence" : "AGATCGTTTAGCGACGT",
-        "start" : 27,
+        "start" : 28,
         "end"   : 44,
         "len"   : 17,
         "gc"    : 0.471,
@@ -23,7 +23,7 @@
     },
     "r" : {
         "sequence" : "TGATCCCCACTATATCGTATC",
-        "start" : 206,
+        "start" : 207,
         "end"   : 227,
         "len"   : 21,
         "gc"    : 0.429,

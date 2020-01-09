@@ -10,6 +10,91 @@ import regex
 
 from .exceptions import StarpError
 
+def add_tails(amas1, amas2, amplicon1, amplicon2, snp):
+    """
+    Args:
+        amas1: An AmasPrimer object.
+        amas2: An AmasPrimer object.
+        amplicon1: The length of the amplicon from the first allele.
+        amplicon2: The length of the amplicon from the second allele.
+        snp: The snp these AmasPrimers were created around.
+            This should be a substitution SNP.
+    """
+    from .models import Sequence
+
+    tail1 = 'GCAACAGGAACCAGCTATGAC'
+    tail2 = 'GACGCAAGTGAGCAGTATGAC'
+
+    if amplicon1 - amplicon2 >= 8:
+        amas1.tailed = Sequence(merge(tail1, str(amas1)))
+        amas2.tailed = Sequence(merge(tail2, str(amas2)))
+    elif amplicon1 - amplicon2 >= 1:
+        amas1.tailed = Sequence(merge(tail2, str(amas1)))
+        amas2.tailed = Sequence(merge(tail1, str(amas2)))
+    elif amplicon1 - amplicon2 == 0:
+        # This branch comes from Table 3 in the STARP paper.
+        assigned_tail = {
+            frozenset({'C', 'G'}): {'C': 1, 'G': 2},
+            frozenset({'C', 'T'}): {'C': 1, 'T': 2},
+            frozenset({'C', 'A'}): {'C': 1, 'A': 2},
+            frozenset({'G', 'T'}): {'G': 1, 'T': 2},
+            frozenset({'G', 'A'}): {'G': 1, 'A': 2},
+            frozenset({'T', 'A'}): {'T': 1, 'A': 2}
+        }
+
+        if frozenset({str(amas1[0]), str(amas2[0])} == snp.nucleotides):
+            if assigned_tail[snp.nucleotides][str(amas1[0])] == 1:
+                # Assign tail1 to amas1, tail2 to amas2
+                amas1.tailed = Sequence(merge(tail1, str(amas1)))
+                amas2.tailed = Sequence(merge(tail2, str(amas2)))
+            else:
+                # Assign tail1 to amas2, tail2 to amas1
+                amas1.tailed = Sequence(merge(tail2, str(amas1)))
+                amas2.tailed = Sequence(merge(tail1, str(amas2)))
+        elif frozenset({str(amas1[-1]), str(amas2[-1])} == snp.nucleotides):
+            # Primers were created upstream
+            if assigned_tail[snp.nucleotides][str(amas1[-1])] == 1:
+                # Assign tail1 to amas1, tail2 to amas2
+                amas1.tailed = Sequence(merge(tail1, str(amas1)))
+                amas2.tailed = Sequence(merge(tail2, str(amas2)))
+            else:
+                # Assign tail1 to amas2, tail2 to amas1
+                amas1.tailed = Sequence(merge(tail2, str(amas1)))
+                amas2.tailed = Sequence(merge(tail1, str(amas2)))
+        else:
+            raise StarpError('Something went wrong when adding tails.')
+
+    elif amplicon1 - amplicon2 >= -7:
+        amas1.tailed = Sequence(merge(tail1, str(amas1)))
+        amas2.tailed = Sequence(merge(tail2, str(amas2)))
+    else:
+        amas1.tailed = Sequence(merge(tail2, str(amas1)))
+        amas2.tailed = Sequence(merge(tail1, str(amas2)))
+
+    return (amas1, amas2)
+
+def merge(str1: str, str2: str, max_chars=10000) -> str:
+    """ Attempts to merge str1 and str2 up to max_chars characters.
+    This is similar to concatentation, but an example works best.
+
+    merge('ABCDEF', 'DEFGHI') -> 'ABCDEFGHI'
+
+        ABCDEF
+      +    DEFGHI
+        ---------
+        ABCDEFGHI
+
+    """
+    max_chars = min(len(str1), len(str2), max_chars)
+    overlaps = 0
+
+    for size in range(1, max_chars+1):
+        print(str1[-1*size:], str2[:size])
+        if str1[-1*size:] == str2[:size]:
+            overlaps = size
+
+    return str1 + str2[overlaps:]
+
 def binding_sites(sequences: tuple, primer, stop=2):
     """
     Returns a list of potential binding sites of this primer on these
@@ -86,10 +171,10 @@ def complementary_score(s1, s2) -> int:
     aligner.mode = 'local'
     aligner.open_gap_score = -1000 # Don't want any gaps!
     # score = the number of complementary nucleotides between s1 and s2.
-    return aligner.score(str(s1), str(s2.rev_comp()))
+    return aligner.score(str(s1), str(s2.complement()))
 
 def contig_complementary_score(s1, s2) -> int:
-    """ Complement the reverse sequence and check for equality. This is
+    """ Complement the second sequence and check for equality. This is
     identical to checking for complementary of the reverse sequence.
     difflib.SequenceMatcher is very fast at this.
 
@@ -104,18 +189,38 @@ def contig_complementary_score(s1, s2) -> int:
     """
     matcher = SequenceMatcher()
     matcher.set_seq1(str(s1))
-    matcher.set_seq2(str(s2.rev_comp()))
+    matcher.set_seq2(str(s2.complement()))
     _, _, size = matcher.find_longest_match(0, len(s1), 0, len(s2))
     return size
+
+def record_spans(rprimers, allele1, allele2):
+    """ Given a list of rprimers, record their span in both alleles.
+    If it does not exist exactly in both alleles, remove it from the
+    list. The span is recorded as the first match from regex .
+    Any primers with multiple sites will be removed later. """
+    updated_rprimers = list()
+
+    for primer in rprimers:
+        match = regex.search(str(primer.rev_comp()), str(allele1))
+        print(str(primer.rev_comp()))
+        if not match:
+            continue
+
+        primer.allele1_span = match.group(0)
+        match = regex.search(str(primer.rev_comp()), str(allele2))
+
+        if not match:
+            continue
+
+        primer.allele2_span = match.group(0)
+        updated_rprimers.append(primer)
+
+    return updated_rprimers
 
 def rgenerate(ref_sequence, snp, min_length, max_length):
     """
     Return a list of all possible R primers from SNP end to
     the end of the reference sequence.
-
-    candidates is first a set since due to the way list
-    comprehensions are performed, there could be duplicates at the
-    end of the list.
 
     Args:
         ref_sequence: The sequence to generate primers from.
@@ -128,7 +233,7 @@ def rgenerate(ref_sequence, snp, min_length, max_length):
     from .models import Primer
 
     candidates = [Primer(str(ref_sequence[i:i+size].rev_comp()), i, i+size, -1)
-                  for i in range(snp.end, len(ref_sequence))
+                  for i in range(snp.position+1, len(ref_sequence))
                   for size in range(min_length, max_length+1)]
 
     return candidates
@@ -147,21 +252,19 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
 
         # Move on if the primer has other potential binding sites in
         # these sequences.
-        if len(
-            binding_sites((allele1, allele2), primer, stop=1)
-            ) > 0:
+        if binding_sites((allele1, allele2), primer, stop=1):
             continue
 
-        if len(binding_sites(nontargets, primer, stop=1)) > 0:
+        if binding_sites(nontargets, primer, stop=1):
             continue
 
-        if len(binding_sites(nontargets, primer.rev_comp(), stop=1)) > 0:
+        if binding_sites(nontargets, primer.rev_comp(), stop=1):
             continue
 
         # Check complementarity with AMAS primers.
-        if (len(primer) - complementary_score(primer, amas[0]) > 5
-                    and len(primer) - complementary_score(primer, amas[1]) > 5):
-                candidates.append(primer)
+        if (len(primer) - complementary_score(primer.reverse(), amas[0]) > 5
+                and len(primer) - complementary_score(primer.reverse(), amas[1]) > 5):
+            candidates.append(primer)
 
         if len(candidates) >= max_num:
             break
@@ -169,7 +272,7 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
     return candidates
 
 def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
-                             max_num: int, amas: tuple) -> list:
+                              max_num: int, amas: tuple) -> list:
     """
     Filter R primers by checking their binding site on the sequences.
     One of these sequences should be the reference sequence, so one
@@ -236,13 +339,13 @@ def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
         # nucleotide differences on their 3' ends are checked.
         predicate = lambda match: (str(primer)[-1] == match.group()[-1]
                                    or hamming(str(primer)[-4:-1],
-                                                       match.group()[-4:-1]) < 2)
+                                              match.group()[-4:-1]) < 2)
         binding_sites = filter(predicate, matches)
 
 
         rc_binding_sites = filter(lambda match: (str(primer.rev_comp())[0] == match.group()[0]
                                                  or hamming(str(primer.rev_comp())[1:4],
-                                                                     match.group()[1:4]) < 2),
+                                                            match.group()[1:4]) < 2),
                                   rc_matches)
 
         total_binding_sites = itertools.chain(binding_sites, rc_binding_sites)
@@ -259,8 +362,8 @@ def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
         except StopIteration:
             # Primer has exactly one binding site.
             # Now check if it is complementary with the AMAS primers.
-            if (len(primer) - complementary_score(primer, amas[0]) > 5
-                    and len(primer) - complementary_score(primer, amas[1]) > 5):
+            if (len(primer) - complementary_score(primer.reverse(), amas[0]) > 5
+                    and len(primer) - complementary_score(primer.reverse(), amas[1]) > 5):
                 one_binding_site_primers.append(primer)
 
         if len(one_binding_site_primers) >= max_num:
@@ -347,7 +450,7 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
 
     # Lastly, filter out the candidates with overlapping SNPs.
     for snp in snps:
-        candidates = filter(lambda c: snp.end <= c.start or snp.start >= c.end, candidates)
+        candidates = filter(lambda c: snp.position < c.start or snp.position >= c.end, candidates)
 
     return list(candidates)
 
@@ -358,7 +461,6 @@ def rfilter_complementary(r_primers: list) -> list:
     """
     to_return = []
     for primer in r_primers:
-        print((str(primer.contig_complementary_score) + ' ' + str(len(primer) - primer.complementary_score)))
         if (primer.contig_complementary_score < 10
                 and len(primer) - primer.complementary_score > 5):
             to_return.append(primer)
@@ -454,10 +556,10 @@ def rsorted(primers: list) -> list:
                                       len(primer) - primer.complementary_score > 14))  # 221
 
 def hamming(s1, s2):
-        """Return the Hamming distance between equal-length sequences.
-        Source: Wikipedia """
-        s1 = str(s1)
-        s2 = str(s2)
-        if len(s1) != len(s2):
-            raise ValueError("Undefined for sequences of unequal length.")
-        return sum(el1 != el2 for el1, el2 in zip(s1, s2))
+    """Return the Hamming distance between equal-length sequences.
+    Source: Wikipedia """
+    s1 = str(s1)
+    s2 = str(s2)
+    if len(s1) != len(s2):
+        raise ValueError("Undefined for sequences of unequal length.")
+    return sum(el1 != el2 for el1, el2 in zip(s1, s2))

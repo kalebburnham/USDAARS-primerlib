@@ -208,8 +208,8 @@ class Pair:
             return self._complementary_score
 
         setattr(self, '_complementary_score', 
-                utils.complementary_score(str(self.forward_primer),
-                                          str(self.reverse_primer)))
+                utils.complementary_score(self.forward_primer,
+                                          self.reverse_primer.reverse()))
 
         return self._complementary_score
 
@@ -221,7 +221,7 @@ class Pair:
 
         setattr(self, '_contig_complementary_score',
                 utils.contig_complementary_score(self.forward_primer,
-                                                 self.reverse_primer))
+                                                 self.reverse_primer.reverse()))
 
         return self._contig_complementary_score
 
@@ -358,7 +358,7 @@ class Sequence:
             return self._complementary_score
             
         setattr(self, '_complementary_score',
-                utils.complementary_score(str(self.sequence), str(self.rev_comp())))
+                utils.complementary_score(self.sequence, self.reverse()))
 
         return self._complementary_score
 
@@ -375,7 +375,7 @@ class Sequence:
             return self._contig_complementary_score
 
         setattr(self, '_contig_complementary_score',
-                utils.contig_complementary_score(self, self))
+                utils.contig_complementary_score(self, self.reverse()))
 
         return self._contig_complementary_score
 

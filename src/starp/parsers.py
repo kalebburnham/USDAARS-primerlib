@@ -192,7 +192,7 @@ class TwoAlleles:
             None
         """
         snps = list()
-        position = 1 # Snps should be one indexed.
+        position = 0
 
         # Insertions throw off the positioning of Snps, so we need to
         # keep track of them and offset the positions when there are

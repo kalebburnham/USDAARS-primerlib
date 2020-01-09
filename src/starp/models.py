@@ -47,6 +47,10 @@ class Sequence:
     def __hash__(self):
         return hash(self.sequence)
 
+    def __iter__(self):
+        for c in self.sequence:
+            yield Sequence(c)
+
     def __len__(self):
         return len(self.sequence)
 
@@ -57,7 +61,7 @@ class Sequence:
         """ Return a Sequence object that is the complement of
         self.sequence. """
         comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
-        return Sequence(''.join([comp[i] if i in comp else i for i in list(self.sequence)]))
+        return Sequence(''.join([comp[i] if i in comp else i for i in list(str(self.sequence))]))
 
     def reverse(self):
         """ Return a Sequence object that is the reverse of
@@ -110,7 +114,7 @@ class Sequence:
             return self._complementary_score
 
         setattr(self, '_complementary_score',
-                complementary_score(self, self))
+                complementary_score(self, self.reverse()))
 
         return self._complementary_score
 
@@ -122,7 +126,7 @@ class Sequence:
             return self._contig_complementary_score
 
         setattr(self, '_contig_complementary_score',
-                contig_complementary_score(self, self))
+                contig_complementary_score(self, self.reverse()))
 
         return self._contig_complementary_score
 
@@ -225,6 +229,8 @@ class Primer(Sequence):
         super().__init__(sequence)
         self.start = start
         self.end = end
+        self.allele1_span = None
+        self.allele2_span = None
         # Strand 1 corresponds to the plus strand. Strand -1 is the minus strand.
         self.strand = strand
 
@@ -246,6 +252,36 @@ class Primer(Sequence):
     def __hash__(self):
         return hash((self.sequence, self.start, self.end, self.strand))
 
+class AmasPrimer(Sequence):
+    """
+    A container for an AMAS primer.
+    """
+
+    def __init__(self, sequence, allele_num, span):
+        super().__init__(sequence)
+        self.tailed = None  # A sequence object.
+        self.allele_num = None  # 1 or 2
+        self.span = span  # [inclusive, exclusive)
+
+    def __len__(self):
+        return len(self.sequence)
+
+    def __str__(self):
+        return str(self.sequence)
+
+    @property
+    def start(self):
+        return self.span[0]
+    
+    @property
+    def end(self):
+        return self.span[1]
+    
+    def html(self):
+        """ One document shows the tail underlined and the substitutions
+        highlighted. """
+
+
 class Snp:
     """
     An object representing a single-nucleotide polymorphism.
@@ -253,12 +289,17 @@ class Snp:
     The only acceptable SNPs are substitutions, insertions, and
     deletions.
 
+    Substitution: '{prefix}.{index}{ref_nucleotide}>{new_nucleotide}
+        Ex. 'SequenceA.16C>G'
+    Insertion: '{prefix}.{index}ins{new_nucleotide}
+        Ex. 'SequenceB.178insA
+    Deletion: '{prefix}.{index}del
+        Ex. 'SequenceC.19del'
+
     Attributes:
         descriptor: A standardized string describing the SNP. See
             http://varnomen.hgvs.org/recommendations/DNA/.
-        start: The one-indexed position of the SNP.
-        end: The one-indexed positon of the first nucleotide after the
-            SNP. Always equal to start + 1 in a single polymorphism.
+        position: The zero-indexed position of the SNP.
         type: A string saying the type of the SNP. Current possible
             values are "substitution", "insertion", and "deletion".
         ref_nucleotide: The first possible nucleotide in the SNP. For
@@ -271,24 +312,23 @@ class Snp:
             >> snp.new_nucleotide == 'C'
             >> snp.nucleotides == {C, G}
             True
+
     """
 
     def __init__(self, descriptor):
-        """ It is assumed the descriptor has one-indexed positions.
+        """ It is assumed the descriptor has zero-indexed positions.
         Currently this object should accept the Human Genome Variation
         Society SNP standard as described at
         http://varnomen.hgvs.org/recommendations/DNA/.
         The only accepted SNPs currently are substitutions, deletions,
         and insertions.
 
-        NOTE: Snps are one-indexed!
         """
         self.descriptor = descriptor
 
         parser = SnpParser(self.descriptor)
         self.prefix = parser.prefix()
-        self.start = parser.start()
-        self.end = parser.end()
+        self.position = parser.position()
         self.type = parser.type()
         self.ref_nucleotide = parser.ref_nucleotide()
         self.new_nucleotide = parser.new_nucleotide()
@@ -313,7 +353,7 @@ class SnpParser:
     def __init__(self, descriptor):
         self.descriptor = descriptor
 
-    def start(self):
+    def position(self):
         """
         Extract the start index from self.descriptor.
 
@@ -329,22 +369,6 @@ class SnpParser:
         suffix = self.descriptor.replace(self.prefix(), '')
         match = re.match(r'\d+', suffix)
         return int(match.group())
-
-    def end(self):
-        """
-        Extract the first index NOT in the SNP.
-        """
-        suffix = self.descriptor.replace(self.prefix(), '')
-        if '_' in suffix:
-            pattern = r'(?<=_)\d+'
-            match = re.search(pattern, suffix)
-            end = int(match.group())
-        else:
-            # If there's no underscore, only 1 number is given.
-            # Example: NG_012232.1:g.19del
-            end = self.start() + 1
-
-        return end
 
     def type(self):
         """ Current supported types are substitutions, insertions,

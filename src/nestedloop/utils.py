@@ -78,7 +78,7 @@ def complementary_score(s1: str, s2: str) -> int:
     aligner.mode = 'local'
     aligner.open_gap_score = -1000 # Don't want any gaps!
     # score = the number of complementary nucleotides between s1 and s2.
-    return aligner.score(s1, s2)
+    return aligner.score(str(s1), str(s2.complement()))
 
 def contig_complementary_score(s1, s2) -> int:
     """ Complement the reverse sequence and check for equality. This is
@@ -94,8 +94,8 @@ def contig_complementary_score(s1, s2) -> int:
     """
 
     matcher = SequenceMatcher()
-    matcher.set_seq1(s1)
-    matcher.set_seq2(s2.rev_comp())
+    matcher.set_seq1(str(s1))
+    matcher.set_seq2(str(s2.complement()))
     _, _, size = matcher.find_longest_match(0, len(s1), 0, len(s2))
     return size
 
