@@ -89,7 +89,6 @@ def merge(str1: str, str2: str, max_chars=10000) -> str:
     overlaps = 0
 
     for size in range(1, max_chars+1):
-        print(str1[-1*size:], str2[:size])
         if str1[-1*size:] == str2[:size]:
             overlaps = size
 
@@ -202,7 +201,6 @@ def record_spans(rprimers, allele1, allele2):
 
     for primer in rprimers:
         match = regex.search(str(primer.rev_comp()), str(allele1))
-        print(str(primer.rev_comp()))
         if not match:
             continue
 

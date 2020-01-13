@@ -1,5 +1,6 @@
 import textwrap
 import html
+import logging
 
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
@@ -65,6 +66,8 @@ class Starp:
         self.allele1_aligned = Sequence(snp_parser.allele1_aligned)
         self.allele2_aligned = Sequence(snp_parser.allele2_aligned)
 
+        logging.getLogger().setLevel(logging.INFO)
+
     def set_snp(self, descriptor):
         self.snp = Snp(descriptor)
 
@@ -79,14 +82,24 @@ class Starp:
         if not self.snp in self.snps:
             raise ValueError("Chosen SNP is not in the known list of SNPs.")
 
+        logging.info('Generating AMAS primers.')
+
+        if self.snp.type == 'deletion':
+            # In deletion snps, the descriptor does not contain information on
+            # what the reference nucleotide is, so it must be added..
+            self.snp.ref_nucleotide = str(self.allele1[self.snp.position])
+
         if self.snp.type == 'substitution':
-            self.amas = generate_amas_for_substitution(self.allele1, self.allele2,
+            self.amas, direction = generate_amas_for_substitution(self.allele1, self.allele2,
                                                        self.snp.position, self.snps)
-            self.amas = substitute_bases(self.amas, self.snp)
+            self.amas = substitute_bases(self.amas, self.snp, direction)
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
-            self.amas = generate_amas_for_indel(self.allele1, self.allele2,
+            self.amas, direction = generate_amas_for_indel(self.allele1, self.allele2,
                                                 self.snp.position, self.snps)
-            self.amas = substitute_bases(self.amas, self.snp)
+            self.amas = substitute_bases(self.amas, self.snp, direction)
+
+        logging.info('Finished generating AMAS primers.')
+        logging.info('Making reverse primers.')
 
         # Create reverse primers.
         candidates = rgenerate(self.allele1, self.snp,

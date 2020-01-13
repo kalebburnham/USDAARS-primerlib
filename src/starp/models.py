@@ -323,6 +323,14 @@ class Snp:
         The only accepted SNPs currently are substitutions, deletions,
         and insertions.
 
+        Descriptor Examples:
+            Substitution: '.100A>C'
+            Insertion: 'SequenceA.87insG'
+            Deletion: 'SequenceB.152del'
+
+        Note that the descriptor for deletions contains no information
+        on what the deleted nucleotide is. This information must be
+        entered manually.
         """
         self.descriptor = descriptor
 
@@ -333,9 +341,6 @@ class Snp:
         self.ref_nucleotide = parser.ref_nucleotide()
         self.new_nucleotide = parser.new_nucleotide()
 
-        # Type frozen set so it is hashable
-        self.nucleotides = frozenset((self.ref_nucleotide, self.new_nucleotide))
-
     def __eq__(self, other):
         return self.descriptor == other.descriptor
 
@@ -344,6 +349,12 @@ class Snp:
 
     def __str__(self):
         return self.descriptor
+
+    @property
+    def nucleotides(self):
+        # Type frozen set so it is hashable
+        return frozenset((self.ref_nucleotide, self.new_nucleotide))
+    
 
 class SnpParser:
     """
