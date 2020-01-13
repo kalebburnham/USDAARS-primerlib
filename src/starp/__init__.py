@@ -10,10 +10,13 @@ from .utils import (rgenerate, rfilter, rfilter_complementary, rsorted,
 from .models import Sequence, Snp
 from .parsers import get_parser
 from .exceptions import StarpError
+from .data_validation import validate_input_data
 
 __all__ = [
     'amasfactory', 'exceptions', 'models', 'parsers', 'utils',
 ]
+
+DATA_MAX_LENGTH = 10000
 
 class Starp:
     """
@@ -43,7 +46,7 @@ class Starp:
             None
 
         """
-        self.input_data = input_data.upper()
+        self.input_data = validate_input_data(input_data)
 
         self.hsps = []
         self.amas = None
