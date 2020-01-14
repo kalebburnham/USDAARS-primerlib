@@ -1,3 +1,7 @@
+"""
+License information goes here.
+"""
+
 import textwrap
 import html
 import logging
@@ -73,7 +77,7 @@ class Starp:
 
         logging.getLogger().setLevel(logging.INFO)
 
-    def set_snp(self, descriptor):
+    def set_snp(self, descriptor: str):
         self.snp = Snp(descriptor)
 
     def run(self):
@@ -84,7 +88,7 @@ class Starp:
         if not isinstance(self.snp, Snp):
             raise TypeError("Chosen SNP is not of correct type.")
 
-        if not self.snp in self.snps:
+        if self.snp not in self.snps:
             raise ValueError("Chosen SNP is not in the known list of SNPs.")
 
         logging.info('Generating AMAS primers.')
@@ -95,16 +99,24 @@ class Starp:
             self.snp.ref_nucleotide = str(self.allele1[self.snp.position])
 
         if self.snp.type == 'substitution':
-            upstream_amas, downstream_amas = generate_amas_for_substitution(self.allele1, self.allele2,
-                                                       self.snp.position, self.snps)
-            upstream_amas = substitute_bases(upstream_amas, self.snp, 'upstream')
-            downstream_amas = substitute_bases(downstream_amas, self.snp, 'downstream')
+            upstream_amas, downstream_amas = generate_amas_for_substitution(
+                self.allele1, self.allele2,
+                self.snp.position, self.snps
+            )
+            upstream_amas = substitute_bases(upstream_amas, self.snp,
+                                             'upstream')
+            downstream_amas = substitute_bases(downstream_amas, self.snp,
+                                               'downstream')
 
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
-            upstream_amas, downstream_amas = generate_amas_for_indel(self.allele1, self.allele2,
-                                                self.snp.position, self.snps)
-            upstream_amas = substitute_bases(upstream_amas, self.snp, 'upstream')
-            downstream_amas = substitute_bases(downstream_amas, self.snp, 'downstream')
+            upstream_amas, downstream_amas = generate_amas_for_indel(
+                self.allele1, self.allele2,
+                self.snp.position, self.snps
+            )
+            upstream_amas = substitute_bases(upstream_amas, self.snp,
+                                             'upstream')
+            downstream_amas = substitute_bases(downstream_amas, self.snp,
+                                               'downstream')
 
         logging.info('Finished generating AMAS primers.')
         logging.info('Making reverse primers.')
@@ -116,23 +128,16 @@ class Starp:
         # Downstream candidates are those AFTER the snp, so they pair
         # with the upstream amas pair, and vice versa.
 
-        downstream_rcandidates = rfilter(candidates, upstream_amas, self.snps, self.pcr_max)
-        upstream_rcandidates = rfilter(candidates, downstream_amas, self.snps, self.pcr_max)
+        upstream_rcandidates = rfilter(candidates, downstream_amas,
+                                       self.snps, self.pcr_max)
+        downstream_rcandidates = rfilter(candidates, upstream_amas,
+                                         self.snps, self.pcr_max)
 
         upstream = AmasGroup(upstream_amas, downstream_rcandidates)
-        downstream = AmasGroup(downstream_amas, upstream_rcandidates)
-
         upstream.rprimers = record_spans(upstream.rprimers, self.allele1,
                                          self.allele2)
-        downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
-                                           self.allele2)
-
         upstream.add_rtails()
-        downstream.add_rtails()
-
         upstream.rprimers = rsorted(upstream.rprimers)
-        downstream.rprimers = rsorted(downstream.rprimers)
-
         upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
                                                      self.allele1,
                                                      self.allele2,
@@ -140,6 +145,11 @@ class Starp:
                                                      max_num=3,
                                                      amas=upstream.amas)
 
+        downstream = AmasGroup(downstream_amas, upstream_rcandidates)
+        downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
+                                           self.allele2)
+        downstream.add_rtails()
+        downstream.rprimers = rsorted(downstream.rprimers)
         downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
                                                        self.allele1,
                                                        self.allele2,
@@ -162,6 +172,16 @@ class Starp:
         Converts the two alleles to a human-readable, blast-like HTML
         format with SNPs converted to HTML buttons.
 
+        Output will look like this:
+
+        GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
+        ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
+
+        GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
+        |||||||||||||||||||||||||||||||||||||||||||||  |||||||||||||
+        GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGAAGTACGTCAAGCAA
+
         Args:
             None
 
@@ -178,9 +198,15 @@ class Starp:
                            for a, b in zip(str(self.allele1_aligned),
                                            str(self.allele2_aligned))])
 
-        allele1_lines = textwrap.wrap(str(self.allele1_aligned), WIDTH, break_on_hyphens=False)
-        allele2_lines = textwrap.wrap(str(self.allele2_aligned), WIDTH, break_on_hyphens=False)
-        midline_lines = textwrap.wrap(midline, WIDTH, replace_whitespace=False)
+        allele1_lines = textwrap.wrap(str(self.allele1_aligned),
+                                      width=WIDTH,
+                                      break_on_hyphens=False)
+        allele2_lines = textwrap.wrap(str(self.allele2_aligned),
+                                      width=WIDTH,
+                                      break_on_hyphens=False)
+        midline_lines = textwrap.wrap(midline,
+                                      width=WIDTH,
+                                      replace_whitespace=False)
 
         lines_in_order = []
 
