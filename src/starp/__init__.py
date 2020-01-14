@@ -7,7 +7,7 @@ from .amasfactory import (generate_amas_for_substitution,
 from .utils import (rgenerate, rfilter, rfilter_complementary, rsorted,
                     segregate, rfilter_by_binding_sites, rtailed, add_tails,
                     record_spans)
-from .models import Sequence, Snp
+from .models import Sequence, Snp, AmasGroup
 from .parsers import get_parser
 from .exceptions import StarpError
 from .data_validation import validate_input_data
@@ -50,6 +50,8 @@ class Starp:
 
         self.hsps = []
         self.amas = None
+        self.upstream = None
+        self.downstream = None
         self.reverse_primers = []
         self.num_to_return = 5
         self.pcr_max = 500 ### ********* TEMPORARY VALUE
@@ -93,63 +95,67 @@ class Starp:
             self.snp.ref_nucleotide = str(self.allele1[self.snp.position])
 
         if self.snp.type == 'substitution':
-            self.amas, direction = generate_amas_for_substitution(self.allele1, self.allele2,
+            upstream_amas, downstream_amas = generate_amas_for_substitution(self.allele1, self.allele2,
                                                        self.snp.position, self.snps)
-            self.amas = substitute_bases(self.amas, self.snp, direction)
+            upstream_amas = substitute_bases(upstream_amas, self.snp, 'upstream')
+            downstream_amas = substitute_bases(downstream_amas, self.snp, 'downstream')
+
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
-            self.amas, direction = generate_amas_for_indel(self.allele1, self.allele2,
+            upstream_amas, downstream_amas = generate_amas_for_indel(self.allele1, self.allele2,
                                                 self.snp.position, self.snps)
-            self.amas = substitute_bases(self.amas, self.snp, direction)
+            upstream_amas = substitute_bases(upstream_amas, self.snp, 'upstream')
+            downstream_amas = substitute_bases(downstream_amas, self.snp, 'downstream')
 
         logging.info('Finished generating AMAS primers.')
         logging.info('Making reverse primers.')
 
         # Create reverse primers.
-        candidates = rgenerate(self.allele1, self.snp,
+        candidates = rgenerate(self.allele1,
                                min_length=18, max_length=27)
 
-        candidates = rfilter(candidates, self.amas, self.snps, self.pcr_max)
+        # Downstream candidates are those AFTER the snp, so they pair
+        # with the upstream amas pair, and vice versa.
 
-        low_tm_primers, high_tm_primers = segregate(candidates)
+        downstream_rcandidates = rfilter(candidates, upstream_amas, self.snps, self.pcr_max)
+        upstream_rcandidates = rfilter(candidates, downstream_amas, self.snps, self.pcr_max)
 
-        # Binding sites will be checked on these sequences.
-        sequences = (self.allele1, self.allele2) + tuple(self.hsps)
+        upstream = AmasGroup(upstream_amas, downstream_rcandidates)
+        downstream = AmasGroup(downstream_amas, upstream_rcandidates)
 
-        if high_tm_primers:
-            high_tm_primers = record_spans(high_tm_primers, self.allele1,
+        upstream.rprimers = record_spans(upstream.rprimers, self.allele1,
+                                         self.allele2)
+        downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
                                            self.allele2)
-            high_tm_primers = rfilter_complementary(high_tm_primers)
-            high_tm_primers = rsorted(high_tm_primers)
 
-            self.reverse_primers = rfilter_by_binding_sites(high_tm_primers,
-                                                            self.allele1,
-                                                            self.allele2,
-                                                            self.hsps,
-                                                            max_num=3,
-                                                            amas=self.amas)
+        upstream.add_rtails()
+        downstream.add_rtails()
 
-        # This branch is reached when the high_tm_primers does not contain
-        # any acceptable primers.
-        if low_tm_primers and not self.reverse_primers:
-            low_tm_primers = record_spans(low_tm_primers, self.allele1,
-                                          self.allele2)
-            tailed_rprimers = rtailed(low_tm_primers)
-            tailed_rprimers = rfilter_complementary(tailed_rprimers)
-            tailed_rprimers = rsorted(tailed_rprimers)
-            self.reverse_primers = rfilter_by_binding_sites(low_tm_primers,
-                                                            self.allele1,
-                                                            self.allele2,
-                                                            self.hsps,
-                                                            max_num=3,
-                                                            amas=self.amas)
+        upstream.rprimers = rsorted(upstream.rprimers)
+        downstream.rprimers = rsorted(downstream.rprimers)
 
-        if not self.reverse_primers:
-            raise StarpError("No Reverse Primers Found")
+        upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
+                                                     self.allele1,
+                                                     self.allele2,
+                                                     self.hsps,
+                                                     max_num=3,
+                                                     amas=upstream.amas)
+
+        downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
+                                                       self.allele1,
+                                                       self.allele2,
+                                                       self.hsps,
+                                                       max_num=3,
+                                                       amas=downstream.amas)
+
+        if not upstream.rprimers and not downstream.rprimers:
+            raise StarpError('No reverse primers found.')
+
+        self.downstream = downstream
+        self.upstream = upstream
+
 
         # START HERE
         #self.amas = add_tails()
-
-        return self.reverse_primers
 
     def html(self):
         """

@@ -4,7 +4,8 @@ License information goes here.
 
 import re
 
-from .utils import complementary_score, contig_complementary_score
+from .utils import (complementary_score, contig_complementary_score,
+                    segregate, rtailed)
 
 class Sequence:
     """
@@ -257,11 +258,12 @@ class AmasPrimer(Sequence):
     A container for an AMAS primer.
     """
 
-    def __init__(self, sequence, allele_num, span):
+    def __init__(self, sequence, allele_num, span, direction):
         super().__init__(sequence)
         self.tailed = None  # A sequence object.
         self.allele_num = None  # 1 or 2
         self.span = span  # [inclusive, exclusive)
+        self.direction = direction
 
     def __len__(self):
         return len(self.sequence)
@@ -280,6 +282,25 @@ class AmasPrimer(Sequence):
     def html(self):
         """ One document shows the tail underlined and the substitutions
         highlighted. """
+
+class AmasGroup:
+    """
+    A container for amas primers and corresponding rprimers.
+    """
+    def __init__(self, amas, rprimers):
+        self.amas = amas
+        self.rprimers = rprimers
+
+    @property
+    def direction(self):
+        """ Return the direction of the AMAS primers. """
+        return self.amas[0].direction
+
+    def add_rtails(self):
+        """ Add tails to rprimers with low melting temperature. """
+        low, high = segregate(self.rprimers)
+        low = rtailed(low)
+        self.rprimers = low + high
 
 
 class Snp:

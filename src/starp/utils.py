@@ -200,12 +200,14 @@ def record_spans(rprimers, allele1, allele2):
     updated_rprimers = list()
 
     for primer in rprimers:
-        match = regex.search(str(primer.rev_comp()), str(allele1))
+        seq = str(primer) if primer.strand == 1 else str(primer.rev_comp())
+
+        match = regex.search(seq, str(allele1))
         if not match:
             continue
 
         primer.allele1_span = match.group(0)
-        match = regex.search(str(primer.rev_comp()), str(allele2))
+        match = regex.search(seq, str(allele2))
 
         if not match:
             continue
@@ -215,10 +217,10 @@ def record_spans(rprimers, allele1, allele2):
 
     return updated_rprimers
 
-def rgenerate(ref_sequence, snp, min_length, max_length):
+def rgenerate(ref_sequence, min_length, max_length):
     """
-    Return a list of all possible R primers from SNP end to
-    the end of the reference sequence.
+    Return a list of all possible R primers across the entire reference
+    sequence on the plus strand.
 
     Args:
         ref_sequence: The sequence to generate primers from.
@@ -230,8 +232,8 @@ def rgenerate(ref_sequence, snp, min_length, max_length):
     """
     from .models import Primer
 
-    candidates = [Primer(str(ref_sequence[i:i+size].rev_comp()), i, i+size, -1)
-                  for i in range(snp.position+1, len(ref_sequence))
+    candidates = [Primer(str(ref_sequence[i:i+size]), i, i+size, 1)
+                  for i in range(len(ref_sequence))
                   for size in range(min_length, max_length+1)]
 
     return candidates
@@ -243,9 +245,8 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
 
     for primer in r_primers:
         # The primer should have at most 1 binding site in each allele.
-        # Primers are rev_comped to orient them the same as the alleles.
-        if (len(binding_sites((allele1,), primer.rev_comp())) > 1
-                or len(binding_sites((allele2,), primer.rev_comp())) > 1):
+        if (len(binding_sites((allele1,), primer)) > 1
+                or len(binding_sites((allele2,), primer)) > 1):
             continue
 
         # Move on if the primer has other potential binding sites in
@@ -377,11 +378,6 @@ def rtailed(r_primers: list) -> list:
     Then, returns the primers shorter than 28 bases and those with
     tm <= 62 degrees C.
 
-    Dr. Long adds {'', 'C', 'G', 'CG', 'GC', 'CGC', 'GCG'} to the ends
-    of the primers, but he assumes they are oriented on the plus
-    strand. However, reverse primers are already on the minus strand
-    so these instead will be prepended to the primers.
-
     Args:
         r_primers: The primer list to add tails.
 
@@ -392,16 +388,19 @@ def rtailed(r_primers: list) -> list:
 
     tails = {'', 'C', 'G', 'CG', 'GC', 'CGC', 'GCG'}
 
-    # The cartesian product of the tails and primers in a tuple.
-    tails_and_primers = itertools.product(tails, r_primers)
-
-    # Primers with tails.
-    tailed = list()
-    for tail, primer in tails_and_primers:
-        if primer.start - len(tail) >= 0:
-            tailed.append(Primer(tail + primer.sequence,
-                                 primer.start-len(tail),
-                                 primer.end, primer.strand))
+    tailed = list()  # Primers with tails.
+    for tail, primer in itertools.product(tails, r_primers):
+        if primer.strand == 1:
+            tailed.append(Primer(primer.sequence + tail,
+                                 primer.start,
+                                 primer.end+len(tail),
+                                 primer.strand))
+        elif primer.strand == -1:
+            if primer.start - len(tail) >= 0:
+                tailed.append(Primer(tail + primer.sequence,
+                                     primer.start-len(tail),
+                                     primer.end,
+                                     primer.strand))
 
     return [primer for primer in tailed
             if len(primer) < 28
@@ -414,7 +413,7 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
     - overlap between primer and amas primer
     - Contains invalid characters. The only accepted alphabet
       is {A, C, G, T}.
-    - The distance from amas[1].end and the primer is > pcr_max
+    - The amplicon size is > pcr_max
     - A SNP exists in the primer region.
     - Has >= 10 contiguous G/C or >= 12 contiguous A/T
     - Has >= 8 As, Ts, Gs, or Cs
@@ -422,7 +421,7 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
     - GC content is > 80% or < 20%
 
     Args:
-        primers: Reverse primers, aka primers on -1 strand.
+        primers: Reverse primers. Strand doesn't matter.
         amas: The 2-tuple of AMAS primers.
         snps: A list of SNP objects.
         pcr_max: An integer representing the longest allowed
@@ -432,10 +431,12 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
         The primers that do not meet the above conditions.
     """
 
+    candidates = list()
+    for snp in snps:
+        candidates = list(filter(lambda c: snp.position < c.start or snp.position >= c.end, candidates))
+
     candidates = [primer for primer in r_primers
-                  if (not max(amas[0].end, amas[1].end) >= primer.start
-                      and not regex.search('[^ACGT]', str(primer))
-                      and abs(amas[1].end - primer.start) <= pcr_max
+                  if (not regex.search('[^ACGT]', str(primer))
                       and not primer.has_contig_gc_at(10, 12)
                       and str(primer).count('A') < 8
                       and str(primer).count('T') < 8
@@ -444,30 +445,29 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
                       and not primer.has_dinucleotide_repeat(6)
                       and 0.20 <= primer.gc <= 0.80)]
 
+    # Filter by amplicon size depending if the amas primers are
+    # upstream or downstream.
+    if amas[0].direction == 'upstream':
+        candidates = [primer for primer in candidates
+                      if (max(amas[0].end, amas[1].end) < primer.start
+                          and primer.start - max(amas[0].end, amas[1].end) <= pcr_max)]
+    elif amas[0].direction == 'downstream':
+        candidates = [primer for primer in candidates
+                      if (min(amas[0].start, amas[1].start) > primer.end
+                          and primer.end - min(amas[0].start, amas[1].start) <= pcr_max)]
+
     candidates = rfilter_complementary(candidates)
 
-    # Lastly, filter out the candidates with overlapping SNPs.
-    for snp in snps:
-        candidates = filter(lambda c: snp.position < c.start or snp.position >= c.end, candidates)
-
-    return list(candidates)
+    return candidates
 
 def rfilter_complementary(r_primers: list) -> list:
     """
     Removes the R primers that have >= 10 contiguous self-complementary
     nucleotides or <= 4 nucleotides that are not complementary.
     """
-    to_return = []
-    for primer in r_primers:
-        if (primer.contig_complementary_score < 10
-                and len(primer) - primer.complementary_score > 5):
-            to_return.append(primer)
-
-    return to_return
-
-    #return [primer for primer in r_primers
-    #        if primer.contig_complementary_score < 10
-    #        and len(primer) - primer.complementary_score > 5]
+    return [primer for primer in r_primers
+            if (primer.contig_complementary_score < 10
+                and len(primer) - primer.complementary_score > 5)]
 
 def segregate(primers: list):
     """
@@ -514,6 +514,7 @@ def rsorted(primers: list) -> list:
     20) Has 4 As, Ts, Gs, or Cs
     21) Has (GC% > 60% or GC% < 40%)
     22) Has 4 contiguous complementarity or (primer length - max complementarity) ≤ 14
+    23) Closest to 22 nucleotides
 
     Args:
         The R primers to be sorted.
@@ -551,7 +552,8 @@ def rsorted(primers: list) -> list:
                                       not primer.has_repeated_nucleotide(4),  # 20
                                       0.40 <= primer.gc <= 0.60,  # 21
                                       primer.contig_complementary_score < 4,  # 22a
-                                      len(primer) - primer.complementary_score > 14))  # 221
+                                      len(primer) - primer.complementary_score > 14,  # 22
+                                      abs(len(primer)-22)))
 
 def hamming(s1, s2):
     """Return the Hamming distance between equal-length sequences.

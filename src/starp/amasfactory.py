@@ -225,26 +225,26 @@ def seq_to_ambiguity_code(sequence: str):
             .replace('A', 'W').replace('T', 'W'))
 
 def generate_amas_for_substitution(allele1, allele2, position, snps):
-    """ Does not substitute any bases.
+    """ Attempts to find the best upstream pair and the best
+    downstream pair. These could be None.
+
+    Does not substitute any bases.
     pos(ition) is relative to allele1, zero-indexed.
     """
     adj_position = convert_position(position, snps)
 
-    direction = 'upstream'
     pairs = zip(generate_amas_upstream(allele1, 1, position, 16, 26),
                 generate_amas_upstream(allele2, 2, adj_position, 16, 26))
-    pair = best_pair(pairs)
+    upstream_pair = best_pair(pairs)
 
-    if pair is None:
-        direction = 'downstream'
-        pairs = zip(generate_amas_downstream(allele1, 1, position, 16, 26),
-                    generate_amas_downstream(allele2, 2, adj_position, 16, 26))
-        pair = best_pair(pairs)
+    pairs = zip(generate_amas_downstream(allele1, 1, position, 16, 26),
+                generate_amas_downstream(allele2, 2, adj_position, 16, 26))
+    downstream_pair = best_pair(pairs)
 
-    if pair is None:
+    if not upstream_pair and not downstream_pair:
         raise StarpError('Cannot find Starp primers at this location.')
 
-    return pair, direction
+    return upstream_pair, downstream_pair
 
 def generate_amas_for_indel(allele1, allele2, position, snps):
     """ Does not substitute any bases.
@@ -252,7 +252,6 @@ def generate_amas_for_indel(allele1, allele2, position, snps):
     'how to design AMA-primers for Indel_20191125[3981].pptx' """
     adj_position = convert_position(position, snps)
 
-    direction = 'upstream'
     pairs = zip(generate_amas_upstream(allele1, 1, position, 1, 9),
                 generate_amas_upstream(allele2, 2, adj_position, 1, 9))
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
@@ -261,35 +260,40 @@ def generate_amas_for_indel(allele1, allele2, position, snps):
     # 1) The number of nucleotide differences in the last 4 bases.
     #    More differences is preferable.
     # 2) Length of the sequences in each pair. Longer is preferable.
-    pairs = sorted(pairs,
-                   key=lambda pair: (
-                       Sequence.hamming(pair[0][-4:], pair[1][-4:]),
-                       len(pair[0])),
-                   reverse=True)
+    upstream_pair = sorted(
+                        pairs,
+                        key=lambda pair: (
+                            Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                            len(pair[0])),
+                        reverse=True
+                        )[0]
 
-    """ TODO: Awaiting Dr. Long's instructions.
-    if pairs is None:
-        direction = 'downstream'
+    pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
+                generate_amas_downstream(allele2, 2, adj_position, 1, 9))
 
-        pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
-                    generate_amas_downstream(allele2, 2, adj_position, 1, 9))
+    # Remove the allele pairs having same base at 5' end
+    pairs = filter(lambda pair: pair[0][0] != pair[1][0], pairs)
 
-        # Remove the allele pairs having same base at 5' end
-        pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
-    """
+    downstream_pair = sorted(
+                            pairs,
+                            key=lambda pair: (
+                                Sequence.hamming(pair[0][:4], pair[1][:4]),
+                                len(pair[0])),
+                            reverse=True
+                            )[0]
 
-    if not pairs:
+    if not upstream_pair and not downstream_pair:
         raise StarpError('Cannot find Starp primers at this location.')
 
-    return pairs[0], direction
+    return upstream_pair, downstream_pair
 
 def generate_amas_upstream(allele, allele_num, idx, minimum, maximum):
-    return [AmasPrimer(str(allele[idx-size:idx+1]), allele_num, (idx-size, idx+1))
+    return [AmasPrimer(str(allele[idx-size:idx+1]), allele_num, (idx-size, idx+1), 'upstream')
             for size in range(minimum, maximum)
             if idx-size >= 0]
 
 def generate_amas_downstream(allele, allele_num, idx, minimum, maximum):
-    return [AmasPrimer(str(allele[idx:idx+size+1]), allele_num, (idx, idx+size+1))
+    return [AmasPrimer(str(allele[idx:idx+size+1]), allele_num, (idx, idx+size+1), 'downstream')
             for size in range(minimum, maximum)
             if idx+size < len(allele)]
 
@@ -340,9 +344,9 @@ def substitute_bases(pair, snp, direction='upstream'):
         # The SNP is at the beginning of the sequence, e.g.
         # pair[0] = XNNNNNNNN...
         # pair[1] = YNNNNNNNN...
-        local_snps = TwoAlleles(f'>\n{pair[0][1:4]}\n>\n{pair[1][1:4]}').snps()
-    elif direction == 'upstream':
         local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
+    elif direction == 'upstream':
+        local_snps = TwoAlleles(f'>\n{pair[0][1:4]}\n>\n{pair[1][1:4]}').snps()
 
     if len(local_snps) == 0:
         new_amas1, new_amas2 = substitute_with_one_snp(pair, direction)
@@ -444,12 +448,12 @@ def substitute_with_two_snps(pair, snp, direction='upstream'):
 
     seq1 = pair[0][:xsnp.position] + placeholder + pair[0][xsnp.position+1:]
     code = seq_to_ambiguity_code(pair[0][-4:-1]) + pair[0][-1]
-    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
+    idx_to_sub = sub_index_two_snps[xsnp.nucleotides][code]
     seq1 = substitute(seq1, idx_to_sub)
 
     seq2 = pair[1][:xsnp.position] + placeholder + pair[1][xsnp.position+1:]
     code = seq_to_ambiguity_code(pair[1][-4:-1]) + pair[1][-1]
-    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
+    idx_to_sub = sub_index_two_snps[xsnp.nucleotides][code]
     seq2 = substitute(seq2, idx_to_sub)
 
     if direction == 'downstream':
