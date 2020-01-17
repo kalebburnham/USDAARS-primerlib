@@ -58,6 +58,9 @@ class Sequence:
     def __str__(self):
         return self.sequence
 
+    def __repr__(self):
+        return f'Sequence(sequence={self.sequence})'
+
     def complement(self):
         """ Return a Sequence object that is the complement of
         self.sequence. """
@@ -235,6 +238,12 @@ class Primer(Sequence):
         # Strand 1 corresponds to the plus strand. Strand -1 is the minus strand.
         self.strand = strand
 
+    def __repr__(self):
+        return (f'Primer(sequence={str(self.sequence)}, '
+                f'allele1_span={self.allele1_span}, '
+                f'allele2_span={self.allele2_span}, '
+                f'strand={self.strand})')
+
     def __len__(self):
         return len(self.sequence)
 
@@ -256,20 +265,34 @@ class Primer(Sequence):
 class AmasPrimer(Sequence):
     """
     A container for an AMAS primer.
+
+    Attributes:
+        tail: The added tail on the 5' end.
+        allele_num: The allele this primer originated from. The first
+            allele entered is allele *1* and the second is allele *2*.
+        span: The start and stop positions of this primer. Should be
+            [inclusive, exclusive)
+        direction: 'upstream' if the primer was created before the SNP
+            or 'downstream' if the primer was created after the SNP.
     """
 
     def __init__(self, sequence, allele_num, span, direction):
         super().__init__(sequence)
-        self.tailed = None  # A sequence object.
+        self.tail = Sequence('')  # A sequence object.
         self.allele_num = None  # 1 or 2
-        self.span = span  # [inclusive, exclusive)
+        self.span = span
         self.direction = direction
 
     def __len__(self):
         return len(self.sequence)
 
     def __str__(self):
-        return str(self.sequence)
+        return str(self.tail + self.sequence)
+
+    def __repr__(self):
+        return (f'AmasPrimer(tail={str(self.tail)}, '
+                f'sequence={str(self.sequence)}, '
+                f'span={self.span})')
 
     @property
     def start(self):
@@ -370,6 +393,14 @@ class Snp:
 
     def __str__(self):
         return self.descriptor
+
+    def __repr__(self):
+        return (f'Snp(descriptor={self.descriptor}, '
+                f'type={self.type}, '
+                f'prefix={self.prefix}, '
+                f'position={self.position}, '
+                f'ref_nucleotide={self.ref_nucleotide}, '
+                f'new_nucleotide={self.new_nucleotide})')
 
     @property
     def nucleotides(self):
