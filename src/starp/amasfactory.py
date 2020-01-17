@@ -252,6 +252,12 @@ def generate_amas_for_indel(allele1, allele2, position, snps):
     'how to design AMA-primers for Indel_20191125[3981].pptx' """
     adj_position = convert_position(position, snps)
 
+    """
+    It is not clear if amas primer for indels should also try the
+    upstream. The function that calls this expects both upstream
+    and downstream, so return [] for the upstream for now.
+
+
     pairs = zip(generate_amas_upstream(allele1, 1, position, 1, 9),
                 generate_amas_upstream(allele2, 2, adj_position, 1, 9))
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
@@ -260,42 +266,77 @@ def generate_amas_for_indel(allele1, allele2, position, snps):
     # 1) The number of nucleotide differences in the last 4 bases.
     #    More differences is preferable.
     # 2) Length of the sequences in each pair. Longer is preferable.
-    upstream_pair = sorted(
-                        pairs,
-                        key=lambda pair: (
-                            Sequence.hamming(pair[0][-4:], pair[1][-4:]),
-                            len(pair[0])),
-                        reverse=True
-                        )[0]
+    upstream_pairs = sorted(
+                         pairs,
+                         key=lambda pair: (
+                             Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                             len(pair[0])),
+                         reverse=True
+                         )
+
+    upstream_pair = upstream_pairs[0] if upstream_pairs else []
+    """
+    upstream_pair = []
 
     pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
                 generate_amas_downstream(allele2, 2, adj_position, 1, 9))
 
-    # Remove the allele pairs having same base at 5' end
-    pairs = filter(lambda pair: pair[0][0] != pair[1][0], pairs)
+    # Remove the allele pairs having same base at 3' end
+    pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
 
-    downstream_pair = sorted(
-                            pairs,
-                            key=lambda pair: (
-                                Sequence.hamming(pair[0][:4], pair[1][:4]),
-                                len(pair[0])),
-                            reverse=True
-                            )[0]
+    downstream_pairs = sorted(
+                             pairs,
+                             key=lambda pair: (
+                                 Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                                 len(pair[0])),
+                             reverse=True
+                             )
+
+    downstream_pair = downstream_pairs[0] if downstream_pairs else []
 
     if not upstream_pair and not downstream_pair:
         raise StarpError('Cannot find Starp primers at this location.')
 
     return upstream_pair, downstream_pair
 
-def generate_amas_upstream(allele, allele_num, idx, minimum, maximum):
-    return [AmasPrimer(str(allele[idx-size:idx+1]), allele_num, (idx-size, idx+1), 'upstream')
-            for size in range(minimum, maximum)
-            if idx-size >= 0]
+def generate_amas_upstream(allele, allele_num, pos, minimum, maximum):
+    """ Returns AMAS primers upstream of the position using the 
+    aligned sequence. 
 
-def generate_amas_downstream(allele, allele_num, idx, minimum, maximum):
-    return [AmasPrimer(str(allele[idx:idx+size+1]), allele_num, (idx, idx+size+1), 'downstream')
-            for size in range(minimum, maximum)
-            if idx+size < len(allele)]
+    Args:
+        allele: The aligned allele to create primers from. It is
+            possible for this to contain dashes.
+        allele_num: This is using either allele 1 or 2. This is
+            necessary for the primer instantiation.
+        pos: The position to start from.
+        minimum: The minimum primer length.
+        maximum: The maximum primer length, inclusive.
+    """
+    sliced = str(allele[:pos+1]).replace('-', '')
+    return [AmasPrimer(sliced[0-size:],
+                       allele_num,
+                       span=(len(sliced)-size, len(sliced)),
+                       direction='upstream')
+            for size in range(minimum, maximum+1)
+            if pos >= size]
+
+def generate_amas_downstream(allele, allele_num, pos, minimum, maximum):
+    """ Returns a list of AMAS primers downstream of the position using
+    the aligned allele. Doing this downstream is slightly more
+    complicated since we have to consider the positions of the dashes.
+    """
+    dashes_before_pos = str(allele[:pos]).count('-')
+    dashes_after_pos = str(allele[pos+1:]).count('-')
+    is_dash = 1 if allele[pos] == '-' else 0
+
+    sliced = str(allele[pos:]).replace('-', '')
+    return [AmasPrimer(sliced[:size],
+                       allele_num,
+                       span=(pos-dashes_before_pos,
+                             pos+size-dashes_after_pos+is_dash),
+                       direction='downstream')
+            for size in range(minimum, maximum+1)
+            if size <= len(sliced)]
 
 def substitute_bases(pair, snp, direction='upstream'):
     """
@@ -339,6 +380,8 @@ def substitute_bases(pair, snp, direction='upstream'):
 
     This method works for both substitutions and indels.
     """
+    if not pair:
+        return None
 
     if direction == 'downstream':
         # The SNP is at the beginning of the sequence, e.g.
@@ -416,9 +459,6 @@ def substitute_with_one_snp(pair, direction='upstream'):
 
 def substitute_with_two_snps(pair, snp, direction='upstream'):
     """
-    other_snp is the second snp towards the end that is not
-    the final snp.
-
     Many times we only need to differentiate between a C/G or A/T snp,
     and all the rest. To do this, replace the Snp index with a P if it
     is a C/G or A/T snp (P for Paired) and N for all the rest.

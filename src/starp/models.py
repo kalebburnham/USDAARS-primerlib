@@ -325,6 +325,22 @@ class AmasGroup:
         low = rtailed(low)
         self.rprimers = low + high
 
+class AmasPair:
+    """
+    Contains two AMAS primers with a single common rprimer.
+
+    Attributes:
+        amas: 2-Tuple of AmasPrimers.
+        rprimer: The common reverse primer.
+    """
+    def __init__(self, amas, rprimer):
+        self.amas = amas
+        self.rprimer = rprimer
+
+    @property
+    def direction(self):
+        """ Return the direction of the AMAS primers. """
+        return self.amas[0].direction
 
 class Snp:
     """

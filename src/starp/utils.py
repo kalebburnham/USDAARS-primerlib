@@ -10,27 +10,25 @@ import regex
 
 from .exceptions import StarpError
 
-def add_tails(amas1, amas2, amplicon1, amplicon2, snp):
+def add_tails(amas1, amas2, amplicon1, amplicon2):
     """
     Args:
         amas1: An AmasPrimer object.
         amas2: An AmasPrimer object.
         amplicon1: The length of the amplicon from the first allele.
         amplicon2: The length of the amplicon from the second allele.
-        snp: The snp these AmasPrimers were created around.
-            This should be a substitution SNP.
     """
     from .models import Sequence
 
-    tail1 = 'GCAACAGGAACCAGCTATGAC'
-    tail2 = 'GACGCAAGTGAGCAGTATGAC'
+    tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
+    tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
 
     if amplicon1 - amplicon2 >= 8:
-        amas1.tailed = Sequence(merge(tail1, str(amas1)))
-        amas2.tailed = Sequence(merge(tail2, str(amas2)))
+        amas1.tail = tail1
+        amas2.tail = tail2
     elif amplicon1 - amplicon2 >= 1:
-        amas1.tailed = Sequence(merge(tail2, str(amas1)))
-        amas2.tailed = Sequence(merge(tail1, str(amas2)))
+        amas1.tail = tail2
+        amas2.tail = tail1
     elif amplicon1 - amplicon2 == 0:
         # This branch comes from Table 3 in the STARP paper.
         assigned_tail = {
@@ -42,57 +40,72 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp):
             frozenset({'T', 'A'}): {'T': 1, 'A': 2}
         }
 
-        if frozenset({str(amas1[0]), str(amas2[0])} == snp.nucleotides):
-            if assigned_tail[snp.nucleotides][str(amas1[0])] == 1:
-                # Assign tail1 to amas1, tail2 to amas2
-                amas1.tailed = Sequence(merge(tail1, str(amas1)))
-                amas2.tailed = Sequence(merge(tail2, str(amas2)))
+        # Indels pose a problem since the snp is converted
+        # to a substitution snp. This changes the position and
+        # the nucleotides. Thankfully, at least one side of the
+        # AMAS primers must differ since if they did not, they
+        # would have been removed at a previous step.
+        # This is certainly a hack but the instructions keep
+        # changing so I don't know a better way at the moment.
+        # No guarantee this works correctly.
+        if amas1[0] == amas2[0]:
+            nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
+        else:
+            nucleotides = frozenset({str(amas1[0]), str(amas2[0])})
+
+        if amas1.direction == 'downstream':
+            if assigned_tail[nucleotides][str(amas1[0])] == 1:
+                amas1.tail = cut(tail1, amas1.sequence)
+                amas2.tail = cut(tail2, amas2.sequence)
             else:
-                # Assign tail1 to amas2, tail2 to amas1
-                amas1.tailed = Sequence(merge(tail2, str(amas1)))
-                amas2.tailed = Sequence(merge(tail1, str(amas2)))
-        elif frozenset({str(amas1[-1]), str(amas2[-1])} == snp.nucleotides):
-            # Primers were created upstream
-            if assigned_tail[snp.nucleotides][str(amas1[-1])] == 1:
-                # Assign tail1 to amas1, tail2 to amas2
-                amas1.tailed = Sequence(merge(tail1, str(amas1)))
-                amas2.tailed = Sequence(merge(tail2, str(amas2)))
+                amas1.tail = cut(tail2, amas1.sequence)
+                amas2.tail = cut(tail1, amas2.sequence)
+        elif amas1.direction == 'upstream':
+            if assigned_tail[nucleotides][str(amas1[-1])] == 1:
+                amas1.tail = cut(tail1, amas1.sequence)
+                amas2.tail = cut(tail2, amas2.sequence)
             else:
-                # Assign tail1 to amas2, tail2 to amas1
-                amas1.tailed = Sequence(merge(tail2, str(amas1)))
-                amas2.tailed = Sequence(merge(tail1, str(amas2)))
+                amas1.tail = cut(tail2, amas1.sequence)
+                amas2.tail = cut(tail1, amas2.sequence)
         else:
             raise StarpError('Something went wrong when adding tails.')
-
     elif amplicon1 - amplicon2 >= -7:
-        amas1.tailed = Sequence(merge(tail1, str(amas1)))
-        amas2.tailed = Sequence(merge(tail2, str(amas2)))
+        amas1.tail = cut(tail1, amas1.sequence)
+        amas2.tail = cut(tail2, amas2.sequence)
     else:
-        amas1.tailed = Sequence(merge(tail2, str(amas1)))
-        amas2.tailed = Sequence(merge(tail1, str(amas2)))
+        amas1.tail = cut(tail2, amas1.sequence)
+        amas2.tail = cut(tail1, amas2.sequence)
 
     return (amas1, amas2)
 
-def merge(str1: str, str2: str, max_chars=10000) -> str:
-    """ Attempts to merge str1 and str2 up to max_chars characters.
-    This is similar to concatentation, but an example works best.
-
-    merge('ABCDEF', 'DEFGHI') -> 'ABCDEFGHI'
-
-        ABCDEF
-      +    DEFGHI
-        ---------
-        ABCDEFGHI
-
+def cut(tail, primer):
     """
-    max_chars = min(len(str1), len(str2), max_chars)
-    overlaps = 0
+    Checks the overlap between the 3' end of 'TATGAC' and the 5' end of
+    the primer, and returns the tail with the overlapping bases
+    removed.
 
-    for size in range(1, max_chars+1):
-        if str1[-1*size:] == str2[:size]:
-            overlaps = size
+    For example, with tail='GCAACAGGAACCAGCTATGAC' and
+    primer='TGACGGATCTAGACTACTGACGTCA', 'TGAC' overlaps them. So,
+    the :class:Sequence 'GCAACAGGAACCAGCTA' is returned.
 
-    return str1 + str2[overlaps:]
+    Args:
+        tail: Should be one of the AMAS tails of :class:Sequence.
+            These are 'GCAACAGGAACCAGCTATGAC' and
+            'GACGCAAGTGAGCAGTATGAC'.
+        primer: The :class:Primer primer to check overlaps on its 5'
+            end.
+    """
+    s = 'TATGAC'
+
+    overlap = 0
+    for idx in range(6):
+        if s[5-idx:] == str(primer[:idx]):
+            overlap = idx+1
+
+    if overlap == 0:
+        return tail
+    else:
+        return tail[:0-overlap]
 
 def binding_sites(sequences: tuple, primer, stop=2):
     """
@@ -206,15 +219,14 @@ def record_spans(rprimers, allele1, allele2):
         if not match:
             continue
 
-        primer.allele1_span = match.group(0)
+        primer.allele1_span = match.span(0)
         match = regex.search(seq, str(allele2))
 
         if not match:
             continue
 
-        primer.allele2_span = match.group(0)
+        primer.allele2_span = match.span(0)
         updated_rprimers.append(primer)
-
     return updated_rprimers
 
 def rgenerate(ref_sequence, min_length, max_length):
@@ -239,7 +251,7 @@ def rgenerate(ref_sequence, min_length, max_length):
     return candidates
 
 def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
-                             max_num, amas):
+                             amas):
 
     candidates = []
 
@@ -251,8 +263,6 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
 
         # Move on if the primer has other potential binding sites in
         # these sequences.
-        if binding_sites((allele1, allele2), primer, stop=1):
-            continue
 
         if binding_sites(nontargets, primer, stop=1):
             continue
@@ -264,9 +274,6 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
         if (len(primer) - complementary_score(primer.reverse(), amas[0]) > 5
                 and len(primer) - complementary_score(primer.reverse(), amas[1]) > 5):
             candidates.append(primer)
-
-        if len(candidates) >= max_num:
-            break
 
     return candidates
 
@@ -370,7 +377,7 @@ def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
 
     return one_binding_site_primers
 
-def rtailed(r_primers: list) -> list:
+def rtailed(rprimers: list) -> list:
     """
     Add tails to reverse primers as described in
     docs/Starp R primer design[4311].
@@ -389,20 +396,15 @@ def rtailed(r_primers: list) -> list:
     tails = {'', 'C', 'G', 'CG', 'GC', 'CGC', 'GCG'}
 
     tailed = list()  # Primers with tails.
-    for tail, primer in itertools.product(tails, r_primers):
+    for tail, primer in itertools.product(tails, rprimers):
+        # Should the spans be updated when a tail is added?
         if primer.strand == 1:
-            tailed.append(Primer(primer.sequence + tail,
-                                 primer.start,
-                                 primer.end+len(tail),
-                                 primer.strand))
+            primer.sequence = primer.sequence + tail
         elif primer.strand == -1:
             if primer.start - len(tail) >= 0:
-                tailed.append(Primer(tail + primer.sequence,
-                                     primer.start-len(tail),
-                                     primer.end,
-                                     primer.strand))
+                primer.sequence = tail + primer.sequence
 
-    return [primer for primer in tailed
+    return [primer for primer in rprimers
             if len(primer) < 28
             and primer.tm <= 62]
 

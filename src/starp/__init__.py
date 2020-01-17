@@ -5,6 +5,8 @@ License information goes here.
 import textwrap
 import html
 import logging
+import itertools
+import time
 
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
@@ -52,11 +54,11 @@ class Starp:
         """
         self.input_data = validate_input_data(input_data)
 
-        self.hsps = []
+        self.hsps = list()
         self.amas = None
-        self.upstream = None
-        self.downstream = None
-        self.reverse_primers = []
+        self.upstream_pairs = list()
+        self.downstream_pairs = list()
+        self.reverse_primers = list()
         self.num_to_return = 5
         self.pcr_max = 500 ### ********* TEMPORARY VALUE
 
@@ -113,10 +115,20 @@ class Starp:
                 self.allele1, self.allele2,
                 self.snp.position, self.snps
             )
+
+            # The PowerPoint 'docs/how to design AMAS-primers...'
+            # effectively moves the polymorphisms to the opposite
+            # side of the primer. The function substitute_bases
+            # needs to know what side the SNP is on, so by
+            # pretending primers were created downstream for
+            # upstream_amas, 
             upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                             'upstream')
+                                             'downstream')
             downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                               'downstream')
+                                               'upstream')
+
+        if not upstream_amas and not downstream_amas:
+            raise StarpError('Could not generate AMAS primers.')
 
         logging.info('Finished generating AMAS primers.')
         logging.info('Making reverse primers.')
@@ -127,45 +139,78 @@ class Starp:
 
         # Downstream candidates are those AFTER the snp, so they pair
         # with the upstream amas pair, and vice versa.
+        if downstream_amas:
+            upstream_rcandidates = rfilter(candidates, downstream_amas,
+                                           self.snps, self.pcr_max)
 
-        upstream_rcandidates = rfilter(candidates, downstream_amas,
-                                       self.snps, self.pcr_max)
-        downstream_rcandidates = rfilter(candidates, upstream_amas,
-                                         self.snps, self.pcr_max)
+        if upstream_amas:
+            downstream_rcandidates = rfilter(candidates, upstream_amas,
+                                             self.snps, self.pcr_max)
 
-        upstream = AmasGroup(upstream_amas, downstream_rcandidates)
-        upstream.rprimers = record_spans(upstream.rprimers, self.allele1,
-                                         self.allele2)
-        upstream.add_rtails()
-        upstream.rprimers = rsorted(upstream.rprimers)
-        upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
-                                                     self.allele1,
-                                                     self.allele2,
-                                                     self.hsps,
-                                                     max_num=3,
-                                                     amas=upstream.amas)
+        if upstream_amas:
+            upstream = AmasGroup(upstream_amas, downstream_rcandidates)
+            upstream.rprimers = record_spans(upstream.rprimers, self.allele1,
+                                             self.allele2)
+            start_time = time.time()
+            upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
+                                                         self.allele1,
+                                                         self.allele2,
+                                                         self.hsps,
+                                                         amas=upstream.amas)
+            logging.info((f'Filtered upstream rprimers by binding sites in '
+                          f'{str(time.time()-start_time)} seconds.'))
+            upstream.add_rtails()
+            upstream.rprimers = rsorted(upstream.rprimers)[:3]
+            
+        else:
+            upstream = AmasGroup([], [])
 
-        downstream = AmasGroup(downstream_amas, upstream_rcandidates)
-        downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
-                                           self.allele2)
-        downstream.add_rtails()
-        downstream.rprimers = rsorted(downstream.rprimers)
-        downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
-                                                       self.allele1,
-                                                       self.allele2,
-                                                       self.hsps,
-                                                       max_num=3,
-                                                       amas=downstream.amas)
+        if downstream_amas:
+            downstream = AmasGroup(downstream_amas, upstream_rcandidates)
+            downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
+                                               self.allele2)
+            start_time = time.time()
+            downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
+                                                           self.allele1,
+                                                           self.allele2,
+                                                           self.hsps,
+                                                           amas=downstream.amas)
+            logging.info((f'Filtered downstream rprimers by binding sites in '
+                          f'{str(time.time()-start_time)} seconds.'))
+            downstream.add_rtails()
+            downstream.rprimers = rsorted(downstream.rprimers)[:3]
+            
+        else:
+            downstream = AmasGroup([], [])
 
         if not upstream.rprimers and not downstream.rprimers:
             raise StarpError('No reverse primers found.')
 
-        self.downstream = downstream
-        self.upstream = upstream
+        # List of amas primers with common reverse primer.
+        # [(amas1, amas2), rprimer]
+        if upstream:
+            upstream_pairs = list(itertools.product([upstream.amas],
+                                                    upstream.rprimers))
+            for pair in upstream_pairs:
+                amplicon1 = abs(pair[0][0].start - pair[1].end)
+                amplicon2 = abs(pair[0][1].start - pair[1].end)
+                add_tails(*pair[0], amplicon1, amplicon2)
 
+            self.upstream_pairs = upstream_pairs
+        else:
+            self.upstream_pairs = []
 
-        # START HERE
-        #self.amas = add_tails()
+        if downstream:
+            downstream_pairs = list(itertools.product([downstream.amas],
+                                                      downstream.rprimers))
+            for pair in downstream_pairs:
+                amplicon1 = abs(pair[0][0].end - pair[1].start)
+                amplicon2 = abs(pair[0][1].end - pair[1].start)
+                add_tails(*pair[0], amplicon1, amplicon2)
+
+            self.downstream_pairs = downstream_pairs
+        else:
+            self.downstream_pairs = []
 
     def html(self):
         """
