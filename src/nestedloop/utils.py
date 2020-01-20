@@ -148,12 +148,14 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
         if strand == 1:
             # Generate all possible candidates with starting index equal
             # to i.
-            candidates = [Primer(ref_sequence[i:i+size], i, i+size, strand=strand)
+            candidates = [Primer(sequence=ref_sequence[i:i+size],
+                                 span=(i, i+size), strand=strand)
                           for size in range(min_length, max_length+1)]
         else:
             # Generate all possible candidates with ending index equal to
             # i on the minus strand.
-            candidates = [Primer(ref_sequence[i-size:i+1].rev_comp(), i-size, i+1, strand=strand)
+            candidates = [Primer(sequence=ref_sequence[i-size:i+1].rev_comp(),
+                                 span=(i-size, i+1), strand=strand)
                           for size in range(min_length, max_length+1)]
             #candidates = [Primer(self.rev_comp_ref_sequence[i-size:i+1], i-size, i+1, strand=-1)
             #              for size in range(min_length, max_length+1)]

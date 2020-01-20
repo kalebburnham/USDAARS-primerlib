@@ -472,21 +472,31 @@ class Primer(Sequence):
 
     Args:
         sequence: The string of nucleotides that make up this primer.
-        start: The first index on the reference where this primer
-            should bind.
-        end: The first index after the primer that is not binding to
-            it. This is non-inclusive.
+        span: A tuple with start and end indices of the primer's binding
+            site, where start is inclusive and end is exclusive.
         strand: 1 represents the plus strand, -1 is the minus strand.
         custom: Set to true if this is a custom primer the user
             specified.
     """
 
-    def __init__(self, sequence, start, end, strand, custom=False):
+    def __init__(self, sequence, span, strand, custom=False):
         # All sequences are oriented 5'->3' on its corresponding strand.
         # But, start and end points are indexed based on the plus strand
         super().__init__(sequence)
-        self.start = start
-        self.end = end
-        # Strand 1 corresponds to the plus strand. Strand -1 is the minus strand.
+        self.span = span
         self.strand = strand
         self.custom = custom
+
+    def __repr__(self):
+        return (f'Primer(sequence={str(self.sequence)}, '
+                f'span={self.span}, '
+                f'strand={self.strand}, '
+                f'custom={self.custom})')
+
+    @property
+    def start(self):
+        return self.span[0]
+
+    @property
+    def end(self):
+        return self.span[1]

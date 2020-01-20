@@ -80,7 +80,8 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
         if len(hsp_sites) > 0:
             raise NestedLoopError(('Forward primer has binding sites in the '
                                    'non-target regions.'))
-        cfp = Primer(cfp, sites[0].start(), sites[0].end(), strand=1, custom=True)
+        cfp = Primer(sequence=cfp, span=(sites[0].start(), sites[0].end()),
+                     strand=1, custom=True)
     else:
         cfp = ''
 
@@ -99,7 +100,8 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
         if len(hsp_sites) > 0:
             raise NestedLoopError(('Reverse primer has binding sites in the '
                                    'non-target regions.'))
-        crp = Primer(crp, sites[0].start(), sites[0].end(), strand=-1, custom=True)
+        crp = Primer(sequence=crp, span=(sites[0].start(), sites[0].end()),
+                     strand=-1, custom=True)
     else:
         crp = ''
 
