@@ -181,6 +181,11 @@ class Pair:
     def __init__(self, forward_primer, reverse_primer):
         self.forward_primer = forward_primer
         self.reverse_primer = reverse_primer
+        self._additive = None
+        self._complementary_score = None
+        self._contig_complementary_score = None
+        self._identity = None
+        self._contig_identity = None
 
     # We add the +1 to the starting position to make it one-indexed.
     def __str__(self):
@@ -194,34 +199,35 @@ class Pair:
         the primers in this pair. Need the reference sequence to find
         the target sequence.
         """
-        if hasattr(self, '_additive'):
+        if self._additive is not None:
             return self._additive
 
-        additive = Additive(ref_sequence[self.forward_primer.start:self.reverse_primer.end])
-        setattr(self, '_additive', additive)
+        self._additive = Additive(ref_sequence[self.forward_primer.start:self.reverse_primer.end])
         return self._additive
 
     @property
     def complementary_score(self):
-        """ See the Sequence implementation of this method. """
-        if hasattr(self, '_complementary_score'):
+        """ See the Sequence implementation of this method.
+        This assumes the reverse primer is on the -1 strand. """
+        if self._complementary_score is not None:
             return self._complementary_score
 
-        setattr(self, '_complementary_score', 
-                utils.complementary_score(self.forward_primer,
-                                          self.reverse_primer.reverse()))
+        self._complementary_score = utils.complementary_score(
+                                        self.forward_primer,
+                                        self.reverse_primer.reverse())
 
         return self._complementary_score
 
     @property
     def contig_complementary_score(self):
-        """ See the Sequence implementation of this method. """
-        if hasattr(self, '_contig_complementary_score'):
+        """ See the Sequence implementation of this method.
+        This assumes the reverse primer is on the -1 strand. """
+        if self._contig_complementary_score is not None:
             return self._contig_complementary_score
 
-        setattr(self, '_contig_complementary_score',
-                utils.contig_complementary_score(self.forward_primer,
-                                                 self.reverse_primer.reverse()))
+        self._contig_complementary_score = utils.contig_complementary_score(
+                                               self.forward_primer,
+                                               self.reverse_primer.reverse())
 
         return self._contig_complementary_score
 
@@ -237,22 +243,21 @@ class Pair:
         the identity is the number of pairs they have in common in a
         maximal alignment. Similar to complementary score, except we
         check for sameness in the original sequences."""
-        if hasattr(self, '_identity'):
+        if self._identity is not None:
             return self._identity
 
         aligner = Align.PairwiseAligner()
         aligner.mode = 'local'
         aligner.open_gap_score = -1000
-        identity = aligner.score(self.forward_primer.sequence,
-                                 self.reverse_primer.sequence)
-        setattr(self, '_identity', identity)
+        self._identity = aligner.score(self.forward_primer.sequence,
+                                       self.reverse_primer.sequence)
         return self._identity
 
     @property
     def contig_identity(self):
         """ Calculate and return the contiguous identity between the
         pair sequences. """
-        if hasattr(self, '_contig_identity'):
+        if self._contig_identity is not None:
             return self._contig_identity
 
         matcher = SequenceMatcher()
@@ -261,7 +266,7 @@ class Pair:
         _, _, size = matcher.find_longest_match(
             0, len(self.forward_primer.sequence),
             0, len(self.reverse_primer.sequence))
-        setattr(self, '_contig_identity', int(size))
+        self._contig_identity = int(size)
         return self._contig_identity
 
 class Sequence:
@@ -271,6 +276,11 @@ class Sequence:
 
     def __init__(self, sequence):
         self.sequence = str(sequence)
+        self._complementary_score = None
+        self._contig_complementary_score = None
+        self._gc = None
+        self._tm = None
+        
 
     def __eq__(self, other):
         if not isinstance(other, Sequence):
@@ -308,14 +318,13 @@ class Sequence:
     def gc(self):
         """ Returns a double in [0, 1] representing the ratio of G and
         C nucleotides. """
-        if hasattr(self, '_gc'):
+        if self._gc is not None:
             return self._gc
 
         if not self.sequence:
             return 0
 
-        gc_content = (self.sequence.count('G') + self.sequence.count('C')) / len(self.sequence)
-        setattr(self, '_gc', round(gc_content, 3))
+        self._gc = (self.sequence.count('G') + self.sequence.count('C')) / len(self.sequence)
         return self._gc
 
     @property
@@ -326,7 +335,7 @@ class Sequence:
         TODO: Include the sources for these values.
         """
 
-        if hasattr(self, '_tm'):
+        if self._tm is not None:
             return self._tm
 
         enthalpy = {'AA': -7.9, 'AT': -7.2, 'AC': -8.4, 'AG': -7.8,
@@ -348,17 +357,17 @@ class Sequence:
         except KeyError:
             melting_temp = float('nan')
 
-        setattr(self, '_tm', melting_temp)
+        self._tm = melting_temp
         return self._tm
 
     @property
     def complementary_score(self):
         """ Return the self complementary score of this primer. """
-        if hasattr(self, '_complementary_score'):
+        if isinstance(self._complementary_score, int):
             return self._complementary_score
             
-        setattr(self, '_complementary_score',
-                utils.complementary_score(self.sequence, self.reverse()))
+        self._complementary_score = utils.complementary_score(self,
+                                                              self.reverse())
 
         return self._complementary_score
 
@@ -371,11 +380,11 @@ class Sequence:
         Since this is an expensive function, the score is saved after the
         first calculation. Then, it is returned in any subsequent calls.
         """
-        if hasattr(self, '_contig_complementary_score'):
+        if self._contig_complementary_score is not None:
             return self._contig_complementary_score
 
-        setattr(self, '_contig_complementary_score',
-                utils.contig_complementary_score(self, self.reverse()))
+        self._contig_complementary_score = utils.contig_complementary_score(self,
+                                                                            self.reverse())
 
         return self._contig_complementary_score
 
