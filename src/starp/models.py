@@ -227,14 +227,12 @@ class Primer(Sequence):
     """ Represents a PCR primer. Initialization requires a Sequence
     object, start index, end index, and the strand it resides on."""
 
-    def __init__(self, sequence: str, start: int, end: int, strand):
+    def __init__(self, sequence: str, allele1_span: tuple, allele2_span: tuple, strand):
         # All sequences are oriented 5'->3' on its corresponding strand.
         # But, start and end points are indexed based on the plus strand
         super().__init__(sequence)
-        self.start = start
-        self.end = end
-        self.allele1_span = None
-        self.allele2_span = None
+        self.allele1_span = allele1_span
+        self.allele2_span = allele2_span
         # Strand 1 corresponds to the plus strand. Strand -1 is the minus strand.
         self.strand = strand
 
@@ -252,16 +250,32 @@ class Primer(Sequence):
 
     def __eq__(self, other):
         return (self.sequence == other.sequence
-                and self.start == other.start
-                and self.end == other.end
-                and self.strand == other.strand)
+                and self.strand == other.strand
+                and self.allele1_span == other.allele1_span
+                and self.allele2_span == other.allele2_span)
 
     def __getitem__(self, key):
         return self.sequence[key]
 
     def __hash__(self):
-        return hash((self.sequence, self.start, self.end, self.strand))
+        return hash((self.sequence, self.allele1_span, self.allele2_span, self.strand))
 
+    @property
+    def allele1_start(self):
+        return self.allele1_span[0]
+
+    @property
+    def allele1_end(self):
+        return self.allele1_span[1]
+
+    @property
+    def allele2_start(self):
+        return self.allele2_span[0]
+
+    @property
+    def allele2_end(self):
+        return self.allele2_span[1]
+    
 class AmasPrimer(Sequence):
     """
     A container for an AMAS primer.

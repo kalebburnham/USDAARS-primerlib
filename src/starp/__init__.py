@@ -11,8 +11,7 @@ import time
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
 from .utils import (rgenerate, rfilter, rfilter_complementary, rsorted,
-                    segregate, rfilter_by_binding_sites, rtailed, add_tails,
-                    record_spans)
+                    segregate, rfilter_by_binding_sites, rtailed, add_tails)
 from .models import Sequence, Snp, AmasGroup
 from .parsers import get_parser
 from .exceptions import StarpError
@@ -133,8 +132,9 @@ class Starp:
         logging.info('Finished generating AMAS primers.')
         logging.info('Making reverse primers.')
 
-        # Create reverse primers.
-        candidates = rgenerate(self.allele1,
+        # Create reverse primers common to both alleles. This does not
+        # guarantee unique binding sites.
+        candidates = rgenerate(self.allele1_aligned, self.allele2_aligned,
                                min_length=18, max_length=27)
 
         # Downstream candidates are those AFTER the snp, so they pair
@@ -149,8 +149,7 @@ class Starp:
 
         if upstream_amas:
             upstream = AmasGroup(upstream_amas, downstream_rcandidates)
-            upstream.rprimers = record_spans(upstream.rprimers, self.allele1,
-                                             self.allele2)
+
             start_time = time.time()
             upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
                                                          self.allele1,
@@ -167,8 +166,7 @@ class Starp:
 
         if downstream_amas:
             downstream = AmasGroup(downstream_amas, upstream_rcandidates)
-            downstream.rprimers = record_spans(downstream.rprimers, self.allele1,
-                                               self.allele2)
+
             start_time = time.time()
             downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
                                                            self.allele1,
@@ -192,8 +190,8 @@ class Starp:
             upstream_pairs = list(itertools.product([upstream.amas],
                                                     upstream.rprimers))
             for pair in upstream_pairs:
-                amplicon1 = abs(pair[0][0].start - pair[1].end)
-                amplicon2 = abs(pair[0][1].start - pair[1].end)
+                amplicon1 = abs(pair[0][0].start - pair[1].allele1_end)
+                amplicon2 = abs(pair[0][1].start - pair[1].allele2_end)
                 add_tails(*pair[0], amplicon1, amplicon2)
 
             self.upstream_pairs = upstream_pairs
@@ -204,8 +202,8 @@ class Starp:
             downstream_pairs = list(itertools.product([downstream.amas],
                                                       downstream.rprimers))
             for pair in downstream_pairs:
-                amplicon1 = abs(pair[0][0].end - pair[1].start)
-                amplicon2 = abs(pair[0][1].end - pair[1].start)
+                amplicon1 = abs(pair[0][0].end - pair[1].allele1_start)
+                amplicon2 = abs(pair[0][1].end - pair[1].allele2_start)
                 add_tails(*pair[0], amplicon1, amplicon2)
 
             self.downstream_pairs = downstream_pairs

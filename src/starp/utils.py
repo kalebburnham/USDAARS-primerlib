@@ -205,48 +205,56 @@ def contig_complementary_score(s1, s2) -> int:
     _, _, size = matcher.find_longest_match(0, len(s1), 0, len(s2))
     return size
 
-def record_spans(rprimers, allele1, allele2):
-    """ Given a list of rprimers, record their span in both alleles.
-    If it does not exist exactly in both alleles, remove it from the
-    list. The span is recorded as the first match from regex .
-    Any primers with multiple sites will be removed later. """
-    updated_rprimers = list()
-
-    for primer in rprimers:
-        seq = str(primer) if primer.strand == 1 else str(primer.rev_comp())
-
-        match = regex.search(seq, str(allele1))
-        if not match:
-            continue
-
-        primer.allele1_span = match.span(0)
-        match = regex.search(seq, str(allele2))
-
-        if not match:
-            continue
-
-        primer.allele2_span = match.span(0)
-        updated_rprimers.append(primer)
-    return updated_rprimers
-
-def rgenerate(ref_sequence, min_length, max_length):
+def rgenerate(allele1, allele2, min_length, max_length):
     """
-    Return a list of all possible R primers across the entire reference
-    sequence on the plus strand.
+    Return a list of all possible R primers common to allele1 and
+    allele2. However, the primers may not have a unique binding site on
+    each allele.
+
+    This algorithm creates a window of size 'size' and traverses
+    allele1 and allele2 at the same time, while the span of each
+    primer in allele1 is maintained in allele1_span and the span in
+    allele2 is maintained in allele2_span. Stricly speaking, the spans
+    are not accurate when there is a '-' in the sequence, but get
+    updated when a dash is the first character in each sequence.
+
+    Since a SNP cannot look like (-/-), it is not possible for two
+    sequences to be equal if either contains a dash.
 
     Args:
-        ref_sequence: The sequence to generate primers from.
+        allele1: The first aligned allele.
+        allele2: The second aligned allele.
         min_length: Minimum length of primer.
         max_length: Maximum length (inclusive) of primer.
 
     Returns:
-        A list of all possible r primers.
+        A list of all possible r primers common to allele1 and allele2.
     """
     from .models import Primer
 
-    candidates = [Primer(str(ref_sequence[i:i+size]), i, i+size, 1)
-                  for i in range(len(ref_sequence))
-                  for size in range(min_length, max_length+1)]
+    if len(allele1) != len(allele2):
+        raise ValueError('Aligned alleles must be the same length.')
+
+    allele1 = str(allele1)
+    allele2 = str(allele2)
+    candidates = []
+
+    for size in range(min_length, max_length+1):
+        allele1_span = (0, size)
+        allele2_span = (0, size)
+
+        for i in range(len(allele1)-size):
+            if allele1[i:i+size] == allele2[i:i+size]:
+                candidates.append(Primer(sequence=allele1[i:i+size],
+                                         allele1_span=allele1_span,
+                                         allele2_span=allele2_span,
+                                         strand=1))
+
+            if allele1[i] != '-':
+                allele1_span = (allele1_span[0]+1, allele1_span[1]+1)
+
+            if allele2[i] != '-':
+                allele2_span = (allele2_span[0]+1, allele2_span[1]+1)
 
     return candidates
 
@@ -401,7 +409,8 @@ def rtailed(rprimers: list) -> list:
         if primer.strand == 1:
             primer.sequence = primer.sequence + tail
         elif primer.strand == -1:
-            if primer.start - len(tail) >= 0:
+            if (primer.allele1_start - len(tail) >= 0
+                    and primer.allele2_start - len(tail) >= 0):
                 primer.sequence = tail + primer.sequence
 
     return [primer for primer in rprimers
@@ -435,7 +444,7 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
 
     candidates = list()
     for snp in snps:
-        candidates = list(filter(lambda c: snp.position < c.start or snp.position >= c.end, candidates))
+        candidates = list(filter(lambda c: snp.position < c.allele1_start or snp.position >= c.allele1_end, candidates))
 
     candidates = [primer for primer in r_primers
                   if (not regex.search('[^ACGT]', str(primer))
@@ -451,12 +460,16 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
     # upstream or downstream.
     if amas[0].direction == 'upstream':
         candidates = [primer for primer in candidates
-                      if (max(amas[0].end, amas[1].end) < primer.start
-                          and primer.start - max(amas[0].end, amas[1].end) <= pcr_max)]
+                      if (amas[0].end < primer.allele1_start
+                          and amas[1].end < primer.allele2_start
+                          and primer.allele1_start - amas[0].end <= pcr_max
+                          and primer.allele2_start - amas[1].end <= pcr_max)]
     elif amas[0].direction == 'downstream':
         candidates = [primer for primer in candidates
-                      if (min(amas[0].start, amas[1].start) > primer.end
-                          and primer.end - min(amas[0].start, amas[1].start) <= pcr_max)]
+                      if (amas[0].start > primer.allele1_end
+                          and amas[1].start > primer.allele2_end
+                          and primer.allele1_end - amas[0].start <= pcr_max
+                          and primer.allele2_end - amas[1].start <= pcr_max)]
 
     candidates = rfilter_complementary(candidates)
 
