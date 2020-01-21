@@ -105,9 +105,9 @@ class Starp:
                 self.snp.position, self.snps
             )
             upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                             'upstream')
+                                             snp_position='last')
             downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                               'downstream')
+                                               snp_position='first')
 
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
             upstream_amas, downstream_amas = generate_amas_for_indel(
@@ -122,9 +122,9 @@ class Starp:
             # pretending primers were created downstream for
             # upstream_amas, 
             upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                             'downstream')
+                                             snp_position='last')
             downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                               'upstream')
+                                               snp_position='first')
 
         if not upstream_amas and not downstream_amas:
             raise StarpError('Could not generate AMAS primers.')

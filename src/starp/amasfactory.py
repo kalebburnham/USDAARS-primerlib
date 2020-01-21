@@ -338,11 +338,9 @@ def generate_amas_downstream(allele, allele_num, pos, minimum, maximum):
             for size in range(minimum, maximum+1)
             if size <= len(sliced)]
 
-def substitute_bases(pair, snp, direction='upstream'):
+def substitute_bases(pair, snp, snp_position='last'):
     """
-    Substitutes bases according to Dr. Long's instructions. This
-    only works for substitutions and is undefined for insertions
-    and deletions.
+    Substitutes bases according to Dr. Long's instructions.
 
     The substitution principle he defines is:
     A -> C, T -> C, G -> A, C -> T
@@ -379,24 +377,31 @@ def substitute_bases(pair, snp, direction='upstream'):
     the substitution index may be gleaned from the matries.
 
     This method works for both substitutions and indels.
+
+    snp_position should be either 'first' or 'last', signifying
+    if the snp is at the beginning or end of the pair.
     """
     if not pair:
         return None
 
-    if direction == 'downstream':
+    # All of the keys in the large dicts require 4+ characters.
+    if len(pair[0]) < 4:
+        return pair
+
+    if snp_position == 'first':
         # The SNP is at the beginning of the sequence, e.g.
         # pair[0] = XNNNNNNNN...
         # pair[1] = YNNNNNNNN...
-        local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
-    elif direction == 'upstream':
         local_snps = TwoAlleles(f'>\n{pair[0][1:4]}\n>\n{pair[1][1:4]}').snps()
+    elif snp_position == 'last':
+        local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
 
     if len(local_snps) == 0:
-        new_amas1, new_amas2 = substitute_with_one_snp(pair, direction)
+        new_amas1, new_amas2 = substitute_with_one_snp(pair, snp_position)
         pair[0].sequence = new_amas1
         pair[1].sequence = new_amas2
     elif len(local_snps) == 1:
-        new_amas1, new_amas2 = substitute_with_two_snps(pair, snp, direction)
+        new_amas1, new_amas2 = substitute_with_two_snps(pair, snp, snp_position)
         pair[0].sequence = new_amas1
         pair[1].sequence = new_amas2
 
@@ -412,7 +417,7 @@ def convert_position(pos, snps):
 
     return pos - del_count + ins_count
 
-def substitute_with_one_snp(pair, direction='upstream'):
+def substitute_with_one_snp(pair, snp_position='last'):
     """
     http://www.reverse-complement.com/ambiguity.html
     Ambiguity codes:
@@ -429,7 +434,7 @@ def substitute_with_one_snp(pair, direction='upstream'):
 
     pair = (str(pair[0]), str(pair[1]))
 
-    if direction == 'downstream':
+    if snp_position == 'first':
         pair = (pair[0][::-1], pair[1][::-1])
 
     if not pair[0][-1] != pair[1][-1]:
@@ -451,13 +456,13 @@ def substitute_with_one_snp(pair, direction='upstream'):
     idx_to_sub = sub_index_one_snp[snp.nucleotides][code]
     seq2 = substitute(pair[1], idx_to_sub)
 
-    if direction == 'downstream':
+    if snp_position == 'first':
         seq1 = seq1[::-1]
         seq2 = seq2[::-1]
 
     return (seq1, seq2)
 
-def substitute_with_two_snps(pair, snp, direction='upstream'):
+def substitute_with_two_snps(pair, snp, snp_position='last'):
     """
     Many times we only need to differentiate between a C/G or A/T snp,
     and all the rest. To do this, replace the Snp index with a P if it
@@ -465,7 +470,7 @@ def substitute_with_two_snps(pair, snp, direction='upstream'):
     """
     pair = (str(pair[0]), str(pair[1]))
 
-    if direction == 'downstream':
+    if snp_position == 'first':
         pair = (pair[0][::-1], pair[1][::-1])
 
     if not pair[0][-1] != pair[1][-1]:
@@ -496,7 +501,7 @@ def substitute_with_two_snps(pair, snp, direction='upstream'):
     idx_to_sub = sub_index_two_snps[xsnp.nucleotides][code]
     seq2 = substitute(seq2, idx_to_sub)
 
-    if direction == 'downstream':
+    if snp_position == 'first':
         seq1 = seq1[::-1]
         seq2 = seq2[::-1]
 
