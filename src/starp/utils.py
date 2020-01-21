@@ -418,14 +418,13 @@ def rtailed(rprimers: list) -> list:
             and primer.tm <= 62]
 
 
-def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
+def rfilter(r_primers: list, amas: tuple, pcr_max: int) -> list:
     """
     Removes the R primers meeting any of the following conditions:
     - overlap between primer and amas primer
     - Contains invalid characters. The only accepted alphabet
       is {A, C, G, T}.
     - The amplicon size is > pcr_max
-    - A SNP exists in the primer region.
     - Has >= 10 contiguous G/C or >= 12 contiguous A/T
     - Has >= 8 As, Ts, Gs, or Cs
     - Has >= 6 di-nucleotide repeats
@@ -441,10 +440,6 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
     Returns:
         The primers that do not meet the above conditions.
     """
-
-    candidates = list()
-    for snp in snps:
-        candidates = list(filter(lambda c: snp.position < c.allele1_start or snp.position >= c.allele1_end, candidates))
 
     candidates = [primer for primer in r_primers
                   if (not regex.search('[^ACGT]', str(primer))
@@ -471,18 +466,11 @@ def rfilter(r_primers: list, amas: tuple, snps: list, pcr_max: int) -> list:
                           and primer.allele1_end - amas[0].start <= pcr_max
                           and primer.allele2_end - amas[1].start <= pcr_max)]
 
-    candidates = rfilter_complementary(candidates)
+    candidates = [primer for primer in candidates
+                  if (primer.contig_complementary_score < 10
+                      and len(primer) - primer.complementary_score > 5)]
 
     return candidates
-
-def rfilter_complementary(r_primers: list) -> list:
-    """
-    Removes the R primers that have >= 10 contiguous self-complementary
-    nucleotides or <= 4 nucleotides that are not complementary.
-    """
-    return [primer for primer in r_primers
-            if (primer.contig_complementary_score < 10
-                and len(primer) - primer.complementary_score > 5)]
 
 def segregate(primers: list):
     """

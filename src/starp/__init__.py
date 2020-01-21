@@ -10,8 +10,8 @@ import time
 
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
-from .utils import (rgenerate, rfilter, rfilter_complementary, rsorted,
-                    segregate, rfilter_by_binding_sites, rtailed, add_tails)
+from .utils import (rgenerate, rfilter, rsorted, rfilter_by_binding_sites,
+                    rtailed, add_tails)
 from .models import Sequence, Snp, AmasGroup
 from .parsers import get_parser
 from .exceptions import StarpError
@@ -141,11 +141,11 @@ class Starp:
         # with the upstream amas pair, and vice versa.
         if downstream_amas:
             upstream_rcandidates = rfilter(candidates, downstream_amas,
-                                           self.snps, self.pcr_max)
+                                           self.pcr_max)
 
         if upstream_amas:
             downstream_rcandidates = rfilter(candidates, upstream_amas,
-                                             self.snps, self.pcr_max)
+                                             self.pcr_max)
 
         if upstream_amas:
             upstream = AmasGroup(upstream_amas, downstream_rcandidates)
