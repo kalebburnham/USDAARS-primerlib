@@ -78,6 +78,22 @@ def add_tails(amas1, amas2, amplicon1, amplicon2):
 
     return (amas1, amas2)
 
+def aligned_position(pos, snps):
+    """
+    Returns an updated position after the dashes are added back into
+    the sequence.
+    Snp positions are given relative to allele1 without any dashes,
+    Example:
+        With snp = '.2insA', allele1 = 'ATGCACTG', and pos=4, the
+        aligned sequence is 'AT-GCACTG' and the new position is 5
+        because we added a single dash before it.
+    """
+
+    insertion_count = len([snp for snp in snps
+                           if snp.position < pos and snp.type == 'deletion'])
+
+    return pos + insertion_count
+
 def cut(tail, primer):
     """
     Checks the overlap between the 3' end of 'TATGAC' and the 5' end of
@@ -260,6 +276,12 @@ def rgenerate(allele1, allele2, min_length, max_length):
 
 def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
                              amas):
+    """
+    allele1: The aligned first allele.
+    allele2: The aligned second allele.
+
+    TODO: Complete documentation.
+    """
 
     candidates = []
 

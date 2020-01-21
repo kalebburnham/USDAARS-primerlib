@@ -11,7 +11,7 @@ import time
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
 from .utils import (rgenerate, rfilter, rsorted, rfilter_by_binding_sites,
-                    rtailed, add_tails)
+                    rtailed, add_tails, aligned_position)
 from .models import Sequence, Snp, AmasGroup
 from .parsers import get_parser
 from .exceptions import StarpError
@@ -92,6 +92,8 @@ class Starp:
         if self.snp not in self.snps:
             raise ValueError("Chosen SNP is not in the known list of SNPs.")
 
+        snp_index = aligned_position(self.snp.position, self.snps)
+
         logging.info('Generating AMAS primers.')
 
         if self.snp.type == 'deletion':
@@ -101,8 +103,8 @@ class Starp:
 
         if self.snp.type == 'substitution':
             upstream_amas, downstream_amas = generate_amas_for_substitution(
-                self.allele1, self.allele2,
-                self.snp.position, self.snps
+                self.allele1_aligned, self.allele2_aligned,
+                self.snp.position
             )
             upstream_amas = substitute_bases(upstream_amas, self.snp,
                                              snp_position='last')
@@ -111,8 +113,8 @@ class Starp:
 
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
             upstream_amas, downstream_amas = generate_amas_for_indel(
-                self.allele1, self.allele2,
-                self.snp.position, self.snps
+                self.allele1_aligned, self.allele2_aligned,
+                self.snp.position
             )
 
             # The PowerPoint 'docs/how to design AMAS-primers...'

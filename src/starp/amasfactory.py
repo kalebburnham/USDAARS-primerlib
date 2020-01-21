@@ -196,21 +196,6 @@ def substitute(allele, idx):
 
     return Sequence(''.join(allele))
 
-def stretch_downstream(sequence, idx, length):
-    """
-    Dr. Long calls this technique "stretching", where you grab only the
-    nucleotides and skip over any indel characters ('-'). For example,
-    with sequence='A--GTACGGACT', idx=0, and length=4, we grab 'AGTA'.
-    """
-
-    important_seq = str(sequence[idx:]).replace('-', '')
-    important_seq = important_seq.replace('-', '')
-    try:
-        stretched_seq = Sequence(important_seq[:length])
-    except IndexError:
-        raise StarpError('Unable to create Starp primers here.')
-
-    return stretched_seq
 
 def seq_to_ambiguity_code(sequence: str):
     """ Converts 'C' and 'G' to 'S', and 'A'/'T' to 'W' as defined by
@@ -224,21 +209,23 @@ def seq_to_ambiguity_code(sequence: str):
     return (sequence.replace('C', 'S').replace('G', 'S')
             .replace('A', 'W').replace('T', 'W'))
 
-def generate_amas_for_substitution(allele1, allele2, position, snps):
+def generate_amas_for_substitution(allele1, allele2, position):
     """ Attempts to find the best upstream pair and the best
     downstream pair. These could be None.
 
     Does not substitute any bases.
-    pos(ition) is relative to allele1, zero-indexed.
+    
+    Args:
+        allele1: The aligned first allele.
+        allele2: The aligned second allele.
+        position: The index around which to generate primers.
     """
-    adj_position = convert_position(position, snps)
-
     pairs = zip(generate_amas_upstream(allele1, 1, position, 16, 26),
-                generate_amas_upstream(allele2, 2, adj_position, 16, 26))
+                generate_amas_upstream(allele2, 2, position, 16, 26))
     upstream_pair = best_pair(pairs)
 
     pairs = zip(generate_amas_downstream(allele1, 1, position, 16, 26),
-                generate_amas_downstream(allele2, 2, adj_position, 16, 26))
+                generate_amas_downstream(allele2, 2, position, 16, 26))
     downstream_pair = best_pair(pairs)
 
     if not upstream_pair and not downstream_pair:
@@ -246,20 +233,25 @@ def generate_amas_for_substitution(allele1, allele2, position, snps):
 
     return upstream_pair, downstream_pair
 
-def generate_amas_for_indel(allele1, allele2, position, snps):
+def generate_amas_for_indel(allele1, allele2, position):
     """ Does not substitute any bases.
     Based off of
-    'how to design AMA-primers for Indel_20191125[3981].pptx' """
-    adj_position = convert_position(position, snps)
+    'how to design AMA-primers for Indel_20191125[3981].pptx' \
+
+    Args:
+        allele1: The aligned first allele.
+        allele2: The aligned second allele.
+        position: The index around which to generate primers.
+    """
 
     """
     It is not clear if amas primer for indels should also try the
     upstream. The function that calls this expects both upstream
     and downstream, so return [] for the upstream for now.
-
+    """
 
     pairs = zip(generate_amas_upstream(allele1, 1, position, 1, 9),
-                generate_amas_upstream(allele2, 2, adj_position, 1, 9))
+                generate_amas_upstream(allele2, 2, position, 1, 9))
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
 
     # Order the pairs based on
@@ -275,11 +267,9 @@ def generate_amas_for_indel(allele1, allele2, position, snps):
                          )
 
     upstream_pair = upstream_pairs[0] if upstream_pairs else []
-    """
-    upstream_pair = []
 
     pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
-                generate_amas_downstream(allele2, 2, adj_position, 1, 9))
+                generate_amas_downstream(allele2, 2, position, 1, 9))
 
     # Remove the allele pairs having same base at 3' end
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
@@ -407,15 +397,7 @@ def substitute_bases(pair, snp, snp_position='last'):
 
     return pair
 
-def convert_position(pos, snps):
-    """ Snp positions are given relative to allele1, so this function
-    converts them into the corresponding position on allele2. """
-    del_count = len([snp for snp in snps
-                     if snp.position < pos and snp.type == 'insertion'])
-    ins_count = len([snp for snp in snps
-                     if snp.position < pos and snp.type == 'deletion'])
 
-    return pos - del_count + ins_count
 
 def substitute_with_one_snp(pair, snp_position='last'):
     """
@@ -470,6 +452,7 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     """
     pair = (str(pair[0]), str(pair[1]))
 
+    # Place the snp at the end so we don't have to make this method twice.
     if snp_position == 'first':
         pair = (pair[0][::-1], pair[1][::-1])
 
@@ -477,14 +460,18 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
         raise ValueError('The sequences do not have a SNP in the last '
                          'position.')
 
-    # SNPs at 2nd, 3rd, or 4th position from the 3' end.
-    local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
+    
+    # All SNPs between the two alleles.
+    snps = TwoAlleles(f'>\n{pair[0]}\n>\n{pair[1]}').snps()
 
-    if len(local_snps) != 1:
+    # SNPs at 2nd, 3rd, or 4th position from the 3' end.
+    snps = list(filter(lambda snp: 0 < len(pair[0])-snp.position < 4, snps))
+
+    if len(snps) != 1:
         raise ValueError('The sequences must have one SNP in the 2nd, 3rd, or '
                          '4th position from the 3\' end.')
 
-    xsnp = local_snps[0]  # extra snp
+    xsnp = snps[0]  # extra snp
 
     if xsnp.nucleotides == {'C', 'G'} or xsnp.nucleotides == {'A', 'T'}:
         placeholder = 'P'
