@@ -174,12 +174,10 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
 
 def pair_sort(pairs):
     """
-    Sort the pairs by checking how many of the disqualifiers each
-    one passes. As soon as a disqualifying condition is met, stop
-    and move on.
+    Returns a sorted list of pairs as defined in
+    "docs/4_combine primers_NEW[2654].docx"
 
-    The _score attribute corresponds to how many of the
-    disqualifiers that pair passed.
+    The best pairs are at the lower indices.
 
     Args:
         pairs: The primer pairs to score.
@@ -190,36 +188,22 @@ def pair_sort(pairs):
     Raises:
         None.
     """
-    disqualifiers = ["_complementary(pair, 4, 14)",
-                     "_complementary(pair, 5, 12)",
-                     "_complementary(pair, 6, 10)",
-                     "_complementary(pair, 7, 8)",
-                     "_complementary(pair, 8, 6)",
-                     "_complementary(pair, 9, 5)"]
 
-    for pair in pairs:
-        if hasattr(pair, '_score'):
-            continue  # Prevents double-counting.
-
-        setattr(pair, '_score', 0)
-
-        for condition in disqualifiers:
-            if eval(condition):
-                break
-            else:
-                pair._score += 1
-
-    return sorted(pairs, key=lambda pair: pair._score, reverse=True)
+    return sorted(pairs,
+                  key=lambda pair: (_complementary(pair, 4, 14),
+                                    _complementary(pair, 5, 12),
+                                    _complementary(pair, 6, 10),
+                                    _complementary(pair, 7, 8),
+                                    _complementary(pair, 8, 6),
+                                    _complementary(pair, 9, 5)),
+                  reverse=True)
 
 def primer_sort(primers):
     """
-    Sort the primers by checking how many of the disqualifiers it
-    passes. As soon as a disqualifying condition is met, stop and
-    move on.
+    Returns a sorted list of primers as defined in
+    "docs/nestedloop/3_design primers[2510].docx"
 
-    The _score attribute corresponds to how many of the
-    disqualifiers that primer passed, and the _compscore attribute
-    is how many complementary_disqualifiers it passed.
+    The best primers are at lower indices.
 
     Note: Dr. Long's instructions say to sort reverse primers
     by 5' tacg. However, reverse primers have already been created
@@ -235,55 +219,31 @@ def primer_sort(primers):
     Raises:
         None.
     """
-    disqualifiers = ["primer.has_contig_gc_at(9, 11)",
-                     "primer.has_mononucleotide_repeat(7)",
-                     "primer.has_dinucleotide_repeat(5)",
-                     "not 0.25 <= primer.gc <= 0.75",
-                     "primer.has_contig_gc_at(8, 9)",
-                     "primer.has_mononucleotide_repeat(6)",
-                     "primer.has_dinucleotide_repeat(4)",
-                     "not 0.30 <= primer.gc <= 0.70",
-                     "primer.has_contig_gc_at(6, 7)",
-                     "primer.has_mononucleotide_repeat(5)",
-                     "primer.has_dinucleotide_repeat(3)",
-                     "not 0.35 <= primer.gc <= 0.65",
-                     "primer.has_in_last(5, 6, 7)",
-                     "primer.has_in_last(3, 4, 4)",
-                     "primer.has_contig_gc_at(4, 5)",
-                     "primer.has_mononucleotide_repeat(4)",
-                     "not 0.40 <= primer.gc <= 0.60"]
-
-    complementary_disqualifiers = ["primer.is_self_complementary(8, 6)",
-                                   "primer.is_self_complementary(7, 8)",
-                                   "primer.is_self_complementary(6, 10)",
-                                   "primer.is_self_complementary(5, 12)",
-                                   "primer.is_self_complementary(4, 14)"]
-
-    for primer in primers:
-        if hasattr(primer, '_score'):
-            # Prevents double-counting. Skip if primer already has a score.
-            continue
-
-        setattr(primer, '_score', 0)
-        setattr(primer, '_compscore', 0)
-
-        for condition in disqualifiers:
-            if eval(condition):
-                break
-            else:
-                primer._score += 1
-
-        for condition in complementary_disqualifiers:
-            if eval(condition):
-                break
-            else:
-                primer._compscore += 1
 
     return sorted(primers,
-                  key=lambda primer: (primer._score,
-                                      primer._compscore,
-                                      three_prime_atgc(primer)),
-                  reverse=True)
+                  key=lambda primer: (primer.has_contig_gc_at(9,11),
+                                      primer.has_mononucleotide_repeat(7),
+                                      primer.has_dinucleotide_repeat(5),
+                                      not 0.25 <= primer.gc <= 0.75,
+                                      primer.has_contig_gc_at(8, 9),
+                                      primer.has_mononucleotide_repeat(6),
+                                      primer.has_dinucleotide_repeat(4),
+                                      not 0.30 <= primer.gc <= 0.70,
+                                      primer.has_contig_gc_at(6, 7),
+                                      primer.has_mononucleotide_repeat(5),
+                                      primer.has_dinucleotide_repeat(3),
+                                      not 0.35 <= primer.gc <= 0.65,
+                                      primer.has_in_last(5, 6, 7),
+                                      primer.has_in_last(3, 4, 4),
+                                      primer.has_contig_gc_at(4, 5),
+                                      primer.has_mononucleotide_repeat(4),
+                                      not 0.40 <= primer.gc <= 0.60,
+                                      primer.is_self_complementary(8, 6),
+                                      primer.is_self_complementary(7, 8),
+                                      primer.is_self_complementary(6, 10),
+                                      primer.is_self_complementary(5, 12),
+                                      primer.is_self_complementary(4, 14),
+                                      three_prime_atgc(primer)))
 
 def three_prime_atgc(primer):
     """ Defines a mapping between {A, T, G, C} and integers that allows
@@ -292,6 +252,44 @@ def three_prime_atgc(primer):
     seq = list(str(primer.reverse()))
     return ''.join([m[n] for n in seq])
 
+def has_one_binding_site(primer, ref_sequence, hsps):
+    """ Searches for the primer sequence and its reverse complement
+    through the reference sequence and all HSPs for any matches
+    with <= 4 nucleotide differences. For each match, if the last
+    nucleotide is a mismatch AND there are >= 2 mismatches in the
+    2nd, 3rd, and 4th positions from the 3' end, then it is NOT
+    considered a binding site. Else, increment num_binding_sites.
+
+    Ex. The following IS a binding site.
+
+        TGAGTCATGATCAGTATG
+        |||  ||||| ||| |||
+        TGAACCATGAACAGAATG
+
+        But, this is NOT a binding site.
+
+        TGAGTCATGATCAGTATG
+        |||||||||| ||| |
+        TGAGTCATGAACAGGACC
+
+        Notice the mismatch on the 3' end. There are 3 mismatches
+        in the last 4 bases.
+
+    If more than one binding site is found, quit immediately.
+
+    Args:
+        primer: The primer for which we are searching fro binding
+                sites.
+
+    Returns:
+        True if the primer has exactly one binding site. Otherwise,
+        False.
+
+    Raises:
+        None.
+    """
+    sequences = [ref_sequence] + hsps
+    return len(binding_sites(sequences, primer)) == 1
 
 ###############
 # Stuff that needs to be cleaned up.
@@ -365,96 +363,6 @@ def combine(f_primers, r_primers, num_to_return, pcr_min, pcr_max,
         pairs = pair_sort(pairs)
 
     return pairs[:num_to_return]
-
-def has_one_binding_site(primer, ref_sequence, hsps):
-    """ Searches for the primer sequence and its reverse complement
-    through the reference sequence and all HSPs for any matches
-    with <= 4 nucleotide differences. For each match, if the last
-    nucleotide is a mismatch AND there are >= 2 mismatches in the
-    2nd, 3rd, and 4th positions from the 3' end, then it is NOT
-    considered a binding site. Else, increment num_binding_sites.
-
-    Ex. The following IS a binding site.
-
-        TGAGTCATGATCAGTATG
-        |||  ||||| ||| |||
-        TGAACCATGAACAGAATG
-
-        But, this is NOT a binding site.
-
-        TGAGTCATGATCAGTATG
-        |||||||||| ||| |
-        TGAGTCATGAACAGGACC
-
-        Notice the mismatch on the 3' end. There are 3 mismatches
-        in the last 4 bases.
-
-    If more than one binding site is found, quit immediately.
-
-    Args:
-        primer: The primer for which we are searching fro binding
-                sites.
-
-    Returns:
-        True if the primer has exactly one binding site. Otherwise,
-        False.
-
-    Raises:
-        None.
-    """
-
-    TOLERANCE = 4
-
-    pattern = '(' + str(primer) + '){s<=' + str(TOLERANCE) + '}'
-    rev_comp_pattern = '(' + str(primer.rev_comp()) + '){s<=' + str(TOLERANCE) + '}'
-
-    # Chain together iterators that will search for matches in the
-    # reference sequence and HSPs.
-    matches_iter = regex.finditer(pattern,
-                                  str(ref_sequence),
-                                  overlapped=True)
-    rev_comp_matches_iter = regex.finditer(rev_comp_pattern,
-                                           str(ref_sequence),
-                                           overlapped=True)
-
-    for hsp in hsps:
-        matches_iter = itertools.chain(matches_iter,
-                                       regex.finditer(pattern,
-                                                      str(hsp.s_seq),
-                                                      overlapped=True))
-        rev_comp_matches_iter = itertools.chain(rev_comp_matches_iter,
-                                                regex.finditer(rev_comp_pattern,
-                                                               str(hsp.s_seq),
-                                                               overlapped=True))
-
-    # Count the number of binding sites. Exit immediately if there is more
-    # than one site.
-
-    num_binding_sites = 0
-
-    for match in matches_iter:
-        seq = primer.sequence
-        matched_seq = match.group()
-
-        if num_binding_sites > 1:
-            break
-
-        if (seq[-1] == matched_seq[-1]
-                or hamming(seq[-4:-1], matched_seq[-4:-1]) < 2):
-            num_binding_sites += 1
-
-    for match in rev_comp_matches_iter:
-        seq = str(primer.rev_comp())
-        matched_seq = match.group()
-
-        if num_binding_sites > 1:
-            break
-
-        if (seq[-1] == matched_seq[-1]
-                or hamming(seq[-4:-1], matched_seq[-4:-1]) < 2):
-            num_binding_sites += 1
-
-    return num_binding_sites == 1
 
 def _complementary(pair, score1, score2):
     """ Returns True if:
