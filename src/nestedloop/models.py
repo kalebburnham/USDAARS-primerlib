@@ -391,7 +391,9 @@ class Sequence:
     def has_contig_gc_at(self, gc, at):
         """ Return True if primer has gc contiguous G/C or at contiguous A/T. """
         pattern = re.compile('[GC]{' + str(gc) + '}|[AT]{' + str(at) + '}')
-        return re.search(pattern, self.sequence)
+        if re.search(pattern, self.sequence):
+            return True
+        return False
 
     def has_in_last(self, gc, at, p):
         """
@@ -430,10 +432,6 @@ class Sequence:
         Raises:
             None
         """
-        #gc = str(gc)
-        #at = str(at)
-        #pattern = re.compile('G{' + gc + '}|C{' + gc + '}|A{' + at + '}|T{' + at + '}')
-        #return re.search(pattern, self.sequence)
         pattern = re.compile('A+|G+|C+|T+')
         result = re.findall(pattern, self.sequence)
         return len(max(result, key=len)) >= n
@@ -454,7 +452,9 @@ class Sequence:
                              +'}|(AG){'+ n +'}|(GA){'+ n +'}|(TG){'+ n +'}|(GT){'+ n
                              +'}|(TC){'+ n +'}|(CT){'+ n +'}|(GC){'+ n +'}|(CG){'
                              + n + '}')
-        return re.search(pattern, self.sequence)
+        if re.search(pattern, self.sequence):
+            return True
+        return False
 
     def is_self_complementary(self, n, m):
         """
