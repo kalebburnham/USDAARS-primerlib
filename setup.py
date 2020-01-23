@@ -5,7 +5,7 @@ import os
 base_path = os.path.dirname(__file__)
 
 setup(
-    name='USDAARS-primerlib',
+    name='usdaars-primerlib',
     version='1.0',
     description='A primer library for calculating primers for Nested Loop PCR and STARP.',
     author='Kaleb Burnham',
