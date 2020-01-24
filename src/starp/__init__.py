@@ -15,7 +15,7 @@ from .utils import (rgenerate, rfilter, rsorted, rfilter_by_binding_sites,
 from .models import Sequence, Snp, AmasGroup
 from .parsers import get_parser
 from .exceptions import StarpError
-from .data_validation import validate_input_data
+from .data_validation import validate_input_data, validate_nontargets
 
 __all__ = [
     'amasfactory', 'exceptions', 'models', 'parsers', 'utils',
@@ -37,7 +37,7 @@ class Starp:
         allele1: The allele with all the first choices of each SNP
         allele2: The allele with all the second choices of each SNP
     """
-    def __init__(self, input_data):
+    def __init__(self, input_data, nontargets=None):
         """
         Initializes Starp data.
 
@@ -52,8 +52,10 @@ class Starp:
 
         """
         self.input_data = validate_input_data(input_data)
+        
+        hsps = validate_nontargets(nontargets)
+        self.nontargets = [hsp.s_seq for hsp in hsps]
 
-        self.hsps = list()
         self.amas = None
         self.upstream_pairs = list()
         self.downstream_pairs = list()
@@ -156,7 +158,7 @@ class Starp:
             upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
                                                          self.allele1,
                                                          self.allele2,
-                                                         self.hsps,
+                                                         self.nontargets,
                                                          amas=upstream.amas)
             logging.info((f'Filtered upstream rprimers by binding sites in '
                           f'{str(time.time()-start_time)} seconds.'))
@@ -173,7 +175,7 @@ class Starp:
             downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
                                                            self.allele1,
                                                            self.allele2,
-                                                           self.hsps,
+                                                           self.nontargets,
                                                            amas=downstream.amas)
             logging.info((f'Filtered downstream rprimers by binding sites in '
                           f'{str(time.time()-start_time)} seconds.'))
