@@ -161,14 +161,17 @@ def binding_sites(sequences: tuple, primer, stop=2):
 
     sites = list()
     pattern = '(' + str(primer) + '){s<=' + str(TOLERANCE) + '}'
+    revcomp_pattern = '(' + str(primer.rev_comp()) + '){s<=' + str(TOLERANCE) + '}'
 
-    matches_iter = iter([])
     for sequence in sequences:
-        matches_iter = itertools.chain(matches_iter,
-                                       regex.finditer(pattern,
-                                                      str(sequence),
-                                                      overlapped=True))
+        matches_iter = regex.finditer(pattern, str(sequence),
+                                      overlapped=True)
 
+        # This code is duplicated here because regex.finditer returns a
+        # _regex.Scanner which is causing problems with itertools.chain
+        # Namely, a StopIteration leaks out of the iterator so Python
+        # complains that an object (a StopIteration) of type 'type' is
+        # not iterable.
         for match in matches_iter:
             matched_seq = match.group()
             if (str(primer)[-1] == matched_seq[-1]
@@ -177,6 +180,19 @@ def binding_sites(sequences: tuple, primer, stop=2):
 
             if len(sites) >= stop:
                 return sites
+
+        matches_iter = regex.finditer(revcomp_pattern, str(sequence),
+                                      overlapped=True)
+        for match in matches_iter:
+            if len(sites) >= stop:
+                return sites
+
+            matched_seq = match.group()
+            if (str(primer)[-1] == matched_seq[-1]
+                    or hamming(str(primer.rev_comp())[-4:-1], matched_seq[-4:-1]) < 2):
+                sites.append(match)
+
+        matches_iter = itertools.chain
 
     return sites
 

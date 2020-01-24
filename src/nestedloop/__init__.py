@@ -68,6 +68,7 @@ class NestedLoop:
         self.pcr_min, self.pcr_max = validate_amplicon_size(pcr_min, pcr_max)
         self.num_to_return = validate_num_to_return(num_to_return)
         self.hsps = validate_nontargets(nontargets) # High-Scoring Pairs
+        self.nontarget_seqs = [hsp.s_seq for hsp in self.hsps]
         self.custom_forward_primer, self.custom_reverse_primer = (
                         validate_custom_primers(custom_forward_primer,
                                                 custom_reverse_primer,
@@ -97,7 +98,7 @@ class NestedLoop:
 
         self.pairs = combine(self.f_primers, self.r_primers,
                              self.num_to_return, self.pcr_min, self.pcr_max,
-                             self.ref_sequence, self.hsps)
+                             self.ref_sequence, self.nontarget_seqs)
 
         for pair in self.pairs:
             pair.additive(self.ref_sequence)
