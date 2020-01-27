@@ -194,6 +194,13 @@ class Pair:
                 + ' Region: ' + str(self.forward_primer.start+1) + '-'
                 + str(self.reverse_primer.end))
 
+    def __repr__(self):
+        return (f'Pair(forward={self.forward_primer.sequence}, '
+                f'reverse={self.reverse_primer.sequence}, '
+                f'span=({self.forward_primer.start}-{self.reverse_primer.end}), '
+                f'complementary_score={self.complementary_score}, '
+                f'contig_complementary_score={self.contig_complementary_score})')
+
     def additive(self, ref_sequence=None):
         """ Returns an Additive object with target sequence between
         the primers in this pair. Need the reference sequence to find
@@ -298,6 +305,9 @@ class Sequence:
 
     def __str__(self):
         return self.sequence
+
+    def __repr__(self):
+        return f'Sequence(sequence={self.sequence})'
 
     def complement(self):
         """ Return a Sequence object that is the complement of
