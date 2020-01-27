@@ -12,9 +12,9 @@ setup(
     author_email='kaleb.burnham@usda.gov',
     packages=['nestedloop', 'starp'],
     package_dir={"": "src"},
-    #install_requires=[
-    #    'Biopython',
-    #    'bs4',
-    #    'regex',
-   # ]
+    install_requires=[
+        'Biopython',
+        'bs4',
+        'regex',
+   ]
 )
