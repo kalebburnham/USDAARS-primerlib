@@ -115,7 +115,7 @@ def cut(tail, primer):
 
     overlap = 0
     for idx in range(6):
-        if s[5-idx:] == str(primer[:idx]):
+        if s[5-idx:] == primer.sequence[:idx]:
             overlap = idx+1
 
     if overlap == 0:
@@ -160,8 +160,8 @@ def binding_sites(sequences: tuple, primer, stop=2):
     TOLERANCE = 4  # Number of acceptable nucleotide substitutions.
 
     sites = list()
-    pattern = '(' + str(primer) + '){s<=' + str(TOLERANCE) + '}'
-    revcomp_pattern = '(' + str(primer.rev_comp()) + '){s<=' + str(TOLERANCE) + '}'
+    pattern = '(' + primer.sequence + '){s<=' + str(TOLERANCE) + '}'
+    revcomp_pattern = '(' + primer.rev_comp().sequence + '){s<=' + str(TOLERANCE) + '}'
 
     for sequence in sequences:
         matches_iter = regex.finditer(pattern, str(sequence),
@@ -174,8 +174,8 @@ def binding_sites(sequences: tuple, primer, stop=2):
         # not iterable.
         for match in matches_iter:
             matched_seq = match.group()
-            if (str(primer)[-1] == matched_seq[-1]
-                    or hamming(str(primer)[-4:-1], matched_seq[-4:-1]) < 2):
+            if (primer.sequence[-1] == matched_seq[-1]
+                    or hamming(primer.sequence[-4:-1], matched_seq[-4:-1]) < 2):
                 sites.append(match)
 
             if len(sites) >= stop:
@@ -188,8 +188,8 @@ def binding_sites(sequences: tuple, primer, stop=2):
                 return sites
 
             matched_seq = match.group()
-            if (str(primer)[-1] == matched_seq[-1]
-                    or hamming(str(primer.rev_comp())[-4:-1], matched_seq[-4:-1]) < 2):
+            if (primer.sequence[-1] == matched_seq[-1]
+                    or hamming(primer.rev_comp().sequence[-4:-1], matched_seq[-4:-1]) < 2):
                 sites.append(match)
 
         matches_iter = itertools.chain
@@ -372,8 +372,8 @@ def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
     one_binding_site_primers = list()
 
     for primer in r_primers:
-        pattern = regex.compile('(' + str(primer) + '){s<=4}')
-        rc_pattern = regex.compile('(' + str(primer.rev_comp()) + '){s<=4}')
+        pattern = regex.compile('(' + primer.sequence + '){s<=4}')
+        rc_pattern = regex.compile('(' + primer.rev_comp().sequence + '){s<=4}')
 
         # Matches on the plus strand when the reverse primer is oriented the
         # same direction. This requires a reverse complement of the primer.
@@ -389,14 +389,14 @@ def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
 
         # Remember, reverse primers are already on the minus strand. So, the
         # nucleotide differences on their 3' ends are checked.
-        predicate = lambda match: (str(primer)[-1] == match.group()[-1]
-                                   or hamming(str(primer)[-4:-1],
+        predicate = lambda match: (primer.sequence[-1] == match.group()[-1]
+                                   or hamming(primer.sequence[-4:-1],
                                               match.group()[-4:-1]) < 2)
         binding_sites = filter(predicate, matches)
 
 
-        rc_binding_sites = filter(lambda match: (str(primer.rev_comp())[0] == match.group()[0]
-                                                 or hamming(str(primer.rev_comp())[1:4],
+        rc_binding_sites = filter(lambda match: (primer.rev_comp().sequence[0] == match.group()[0]
+                                                 or hamming(primer.rev_comp().sequence[1:4],
                                                             match.group()[1:4]) < 2),
                                   rc_matches)
 
@@ -480,12 +480,12 @@ def rfilter(r_primers: list, amas: tuple, pcr_max: int) -> list:
     """
 
     candidates = [primer for primer in r_primers
-                  if (not regex.search('[^ACGT]', str(primer))
+                  if (not regex.search('[^ACGT]', primer.sequence)
                       and not primer.has_contig_gc_at(10, 12)
-                      and str(primer).count('A') < 8
-                      and str(primer).count('T') < 8
-                      and str(primer).count('G') < 8
-                      and str(primer).count('C') < 8
+                      and primer.sequence.count('A') < 8
+                      and primer.sequence.count('T') < 8
+                      and primer.sequence.count('G') < 8
+                      and primer.sequence.count('C') < 8
                       and not primer.has_dinucleotide_repeat(6)
                       and 0.20 <= primer.gc <= 0.80)]
 

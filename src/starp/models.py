@@ -275,6 +275,11 @@ class Primer(Sequence):
     @property
     def allele2_end(self):
         return self.allele2_span[1]
+
+    def rev_comp(self):
+        seq = Sequence(self.sequence)
+        return Primer(seq.rev_comp(), allele1_span=self.allele1_span,
+                      allele2_span=self.allele2_span, strand=self.strand*-1)
     
 class AmasPrimer(Sequence):
     """
