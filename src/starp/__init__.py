@@ -191,6 +191,11 @@ class Starp:
         # List of amas primers with common reverse primer.
         # [(amas1, amas2), rprimer]
         if upstream:
+
+            
+            upstream.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
+                                 for primer in upstream.rprimers]
+
             upstream_pairs = list(itertools.product([upstream.amas],
                                                     upstream.rprimers))
             for pair in upstream_pairs:
@@ -203,6 +208,10 @@ class Starp:
             self.upstream_pairs = []
 
         if downstream:
+
+            upstream.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
+                                 for primer in downstream.rprimers]
+
             downstream_pairs = list(itertools.product([downstream.amas],
                                                       downstream.rprimers))
             for pair in downstream_pairs:
