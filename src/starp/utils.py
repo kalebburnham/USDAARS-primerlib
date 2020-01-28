@@ -55,26 +55,26 @@ def add_tails(amas1, amas2, amplicon1, amplicon2):
 
         if amas1.direction == 'downstream':
             if assigned_tail[nucleotides][str(amas1[0])] == 1:
-                amas1.tail = cut(tail1, amas1.sequence)
-                amas2.tail = cut(tail2, amas2.sequence)
+                amas1.tail = cut(tail1, amas1)
+                amas2.tail = cut(tail2, amas2)
             else:
-                amas1.tail = cut(tail2, amas1.sequence)
-                amas2.tail = cut(tail1, amas2.sequence)
+                amas1.tail = cut(tail2, amas1)
+                amas2.tail = cut(tail1, amas2)
         elif amas1.direction == 'upstream':
             if assigned_tail[nucleotides][str(amas1[-1])] == 1:
-                amas1.tail = cut(tail1, amas1.sequence)
-                amas2.tail = cut(tail2, amas2.sequence)
+                amas1.tail = cut(tail1, amas1)
+                amas2.tail = cut(tail2, amas2)
             else:
-                amas1.tail = cut(tail2, amas1.sequence)
-                amas2.tail = cut(tail1, amas2.sequence)
+                amas1.tail = cut(tail2, amas1)
+                amas2.tail = cut(tail1, amas2)
         else:
             raise StarpError('Something went wrong when adding tails.')
     elif amplicon1 - amplicon2 >= -7:
-        amas1.tail = cut(tail1, amas1.sequence)
-        amas2.tail = cut(tail2, amas2.sequence)
+        amas1.tail = cut(tail1, amas1)
+        amas2.tail = cut(tail2, amas2)
     else:
-        amas1.tail = cut(tail2, amas1.sequence)
-        amas2.tail = cut(tail1, amas2.sequence)
+        amas1.tail = cut(tail2, amas1)
+        amas2.tail = cut(tail1, amas2)
 
     return (amas1, amas2)
 

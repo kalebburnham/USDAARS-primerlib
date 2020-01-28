@@ -465,7 +465,7 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     snps = TwoAlleles(f'>\n{pair[0]}\n>\n{pair[1]}').snps()
 
     # SNPs at 2nd, 3rd, or 4th position from the 3' end.
-    snps = list(filter(lambda snp: 0 < len(pair[0])-snp.position < 4, snps))
+    snps = list(filter(lambda snp: 0 < len(pair[0])-snp.position-1 < 4, snps))
 
     if len(snps) != 1:
         raise ValueError('The sequences must have one SNP in the 2nd, 3rd, or '
