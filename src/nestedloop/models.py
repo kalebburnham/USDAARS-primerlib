@@ -1,5 +1,6 @@
 import math
 import re
+import json
 
 import nestedloop.utils as utils
 
@@ -200,6 +201,20 @@ class Pair:
                 f'span=({self.forward_primer.start}-{self.reverse_primer.end}), '
                 f'complementary_score={self.complementary_score}, '
                 f'contig_complementary_score={self.contig_complementary_score})')
+
+    def toJSON(self):
+        return {'forward_primer' : {'sequence': self.forward_primer.sequence,
+                                               'span': self.forward_primer.span,
+                                               'tm': self.forward_primer.tm,
+                                               'gc': self.forward_primer.gc},
+                           'reverse_primer': {'sequence': self.reverse_primer.sequence,
+                                               'span': self.reverse_primer.span,
+                                               'tm': self.reverse_primer.tm,
+                                               'gc': self.reverse_primer.gc},
+                           'distance': self.distance,
+                           'additive': self.additive().additive,
+                           'pcr_temperatures': self.additive().pcr_temperatures,
+                           'n': self.additive().n}
 
     def additive(self, ref_sequence=None):
         """ Returns an Additive object with target sequence between
