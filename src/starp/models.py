@@ -5,7 +5,7 @@ License information goes here.
 import re
 
 from .utils import (complementary_score, contig_complementary_score,
-                    rtailed)
+                    segregate, rtailed)
 
 class Sequence:
     """
