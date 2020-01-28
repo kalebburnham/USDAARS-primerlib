@@ -143,15 +143,14 @@ class Starp:
 
         # Downstream candidates are those AFTER the snp, so they pair
         # with the upstream amas pair, and vice versa.
-        if downstream_amas:
-            upstream_rcandidates = rfilter(candidates, downstream_amas,
-                                           self.pcr_max)
+
+        # *********
+        # Attempt to pair upstream AMAS primers with downstream rprimers.
 
         if upstream_amas:
             downstream_rcandidates = rfilter(candidates, upstream_amas,
                                              self.pcr_max)
 
-        if upstream_amas:
             upstream = AmasGroup(upstream_amas, downstream_rcandidates)
 
             start_time = time.time()
@@ -164,29 +163,8 @@ class Starp:
                           f'{str(time.time()-start_time)} seconds.'))
             upstream.add_rtails()
             upstream.rprimers = rsorted(upstream.rprimers)[:3]
-            
         else:
             upstream = AmasGroup([], [])
-
-        if downstream_amas:
-            downstream = AmasGroup(downstream_amas, upstream_rcandidates)
-
-            start_time = time.time()
-            downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
-                                                           self.allele1,
-                                                           self.allele2,
-                                                           self.nontargets,
-                                                           amas=downstream.amas)
-            logging.info((f'Filtered downstream rprimers by binding sites in '
-                          f'{str(time.time()-start_time)} seconds.'))
-            downstream.add_rtails()
-            downstream.rprimers = rsorted(downstream.rprimers)[:3]
-            
-        else:
-            downstream = AmasGroup([], [])
-
-        if not upstream.rprimers and not downstream.rprimers:
-            raise StarpError('No reverse primers found.')
 
         # List of amas primers with common reverse primer.
         # [(amas1, amas2), rprimer]
@@ -205,6 +183,29 @@ class Starp:
         else:
             self.upstream_pairs = []
 
+        # ********
+        # Attempt to pair downstream amas with upstream rprimers.
+
+        if downstream_amas:
+            upstream_rcandidates = rfilter(candidates, downstream_amas,
+                                           self.pcr_max)
+
+            downstream = AmasGroup(downstream_amas, upstream_rcandidates)
+
+            start_time = time.time()
+            downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
+                                                           self.allele1,
+                                                           self.allele2,
+                                                           self.nontargets,
+                                                           amas=downstream.amas)
+            logging.info((f'Filtered downstream rprimers by binding sites in '
+                          f'{str(time.time()-start_time)} seconds.'))
+            downstream.add_rtails()
+            downstream.rprimers = rsorted(downstream.rprimers)[:3]
+            
+        else:
+            downstream = AmasGroup([], [])
+
         if downstream:
             downstream.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
                                    for primer in downstream.rprimers]
@@ -219,6 +220,9 @@ class Starp:
             self.downstream_pairs = downstream_pairs
         else:
             self.downstream_pairs = []
+
+        if not upstream.rprimers and not downstream.rprimers:
+            raise StarpError('No reverse primers found.')
 
     def html(self):
         """
