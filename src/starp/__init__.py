@@ -141,39 +141,54 @@ class Starp:
         # *********
         # Attempt to pair upstream AMAS primers with downstream rprimers.
 
+        # I couldn't think of very good names for the containers holding
+        # the amas primers and the rprimers, so here is an explanation.
+
+        # amas_r_group is the container holding AMAS primers upstream from
+        # the SNP and rprimers downstream of the SNP, while r_amas_group is
+        # the container holding rprimers upstream from the SNP and amas
+        # primers downstream from the SNP. 
+
+        # This gives a little intuition if you imagine in amas_r_group that
+        # the amas primers come before the r primers, and vice versa for
+        # r_amas_group.
         if upstream_amas:
             downstream_rcandidates = rfilter(candidates, upstream_amas,
                                              self.pcr_max)
 
-            upstream = AmasGroup(upstream_amas, downstream_rcandidates)
+            amas_r_group = AmasGroup(upstream_amas, downstream_rcandidates)
 
             start_time = time.time()
-            upstream.rprimers = rfilter_by_binding_sites(upstream.rprimers,
+            amas_r_group.rprimers = rfilter_by_binding_sites(amas_r_group.rprimers,
                                                          self.allele1,
                                                          self.allele2,
                                                          self.nontargets,
-                                                         amas=upstream.amas)
+                                                         amas=amas_r_group.amas)
             logging.info((f'Filtered upstream rprimers by binding sites in '
                           f'{str(time.time()-start_time)} seconds.'))
-            upstream.add_rtails()
-            upstream.rprimers = rsorted(upstream.rprimers)[:3]
+            amas_r_group.add_rtails()
+            amas_r_group.rprimers = rsorted(amas_r_group.rprimers)[:3]
         else:
-            upstream = AmasGroup([], [])
+            # Need to define something, else errors arise because variable
+            # does not exist.
+            amas_r_group = AmasGroup([], [])
 
         # List of amas primers with common reverse primer.
         # [(amas1, amas2), rprimer]
-        if upstream:
-            upstream.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
-                                 for primer in upstream.rprimers]
+        if amas_r_group:
+            amas_r_group.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
+                                     for primer in amas_r_group.rprimers]
 
-            upstream_pairs = list(itertools.product([upstream.amas],
-                                                    upstream.rprimers))
-            for pair in upstream_pairs:
+            # Cartesian product of the two sets. The AMAS primers need to be
+            # paired with each individual rprimer to add on the correct tail.
+            amas_r_pairs = list(itertools.product([amas_r_group.amas],
+                                                    amas_r_group.rprimers))
+            for pair in amas_r_pairs:
                 amplicon1 = abs(pair[0][0].start - pair[1].allele1_end)
                 amplicon2 = abs(pair[0][1].start - pair[1].allele2_end)
-                add_tails(*pair[0], amplicon1, amplicon2)
+                add_tails(*pair[0], amplicon1, amplicon2, snp_position='last')
 
-            self.upstream_pairs = upstream_pairs
+            self.upstream_pairs = amas_r_pairs
         else:
             self.upstream_pairs = []
 
@@ -184,38 +199,38 @@ class Starp:
             upstream_rcandidates = rfilter(candidates, downstream_amas,
                                            self.pcr_max)
 
-            downstream = AmasGroup(downstream_amas, upstream_rcandidates)
+            r_amas_group = AmasGroup(downstream_amas, upstream_rcandidates)
 
             start_time = time.time()
-            downstream.rprimers = rfilter_by_binding_sites(downstream.rprimers,
+            r_amas_group.rprimers = rfilter_by_binding_sites(r_amas_group.rprimers,
                                                            self.allele1,
                                                            self.allele2,
                                                            self.nontargets,
-                                                           amas=downstream.amas)
+                                                           amas=r_amas_group.amas)
             logging.info((f'Filtered downstream rprimers by binding sites in '
                           f'{str(time.time()-start_time)} seconds.'))
-            downstream.add_rtails()
-            downstream.rprimers = rsorted(downstream.rprimers)[:3]
+            r_amas_group.add_rtails()
+            r_amas_group.rprimers = rsorted(r_amas_group.rprimers)[:3]
             
         else:
-            downstream = AmasGroup([], [])
+            r_amas_group = AmasGroup([], [])
 
-        if downstream:
-            downstream.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
-                                   for primer in downstream.rprimers]
+        if r_amas_group:
+            r_amas_group.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
+                                   for primer in r_amas_group.rprimers]
 
-            downstream_pairs = list(itertools.product([downstream.amas],
-                                                      downstream.rprimers))
-            for pair in downstream_pairs:
+            r_amas_pairs = list(itertools.product([r_amas_group.amas],
+                                                      r_amas_group.rprimers))
+            for pair in r_amas_pairs:
                 amplicon1 = abs(pair[0][0].end - pair[1].allele1_start)
                 amplicon2 = abs(pair[0][1].end - pair[1].allele2_start)
-                add_tails(*pair[0], amplicon1, amplicon2)
+                add_tails(*pair[0], amplicon1, amplicon2, snp_position='first')
 
-            self.downstream_pairs = downstream_pairs
+            self.downstream_pairs = r_amas_pairs
         else:
             self.downstream_pairs = []
 
-        if not upstream.rprimers and not downstream.rprimers:
+        if not amas_r_group.rprimers and not r_amas_group.rprimers:
             raise StarpError('No reverse primers found.')
 
     def html(self):
