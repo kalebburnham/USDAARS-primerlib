@@ -90,7 +90,7 @@ sub_index_two_snps = {
         'SWPT' : -3, 'SWPG' : -4, 'SWNT' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
         'WSPT' : -4, 'WSPG' : -3, 'WSNT' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
         'WWPT' : -3, 'WWPG' : -4, 'WWNT' : -3, 'WWNG' : -4,
-        'SPST' : -4, 'SPSG' : -2, '..W.' : -2, 'SPWG' : -4,
+        'SPST' : -4, 'SPSG' : -2, 'SPWT' : -2, 'SPWG' : -4,
         'SNST' : -4, 'SNSG' : -2, 'SNWT' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
         'WPST' : -4, 'WPSG' : -2, 'WPWT' : -4, 'WPWG' : -2,
         'WNST' : ('CG', -4, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -2), 'WNWT' : -4, 'WNWG' : -2,
