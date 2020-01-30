@@ -525,12 +525,12 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
 
     seq1 = pair[0][:xsnp.position] + placeholder + pair[0][xsnp.position+1:]
     code = seq_to_ambiguity_code(seq1[-4:-1]) + pair[0][-1]
-    idx_to_sub = sub_index_two_snps[xsnp.nucleotides][code]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
     seq1 = substitute(seq1, idx_to_sub)
 
     seq2 = pair[1][:xsnp.position] + placeholder + pair[1][xsnp.position+1:]
     code = seq_to_ambiguity_code(seq2[-4:-1]) + pair[1][-1]
-    idx_to_sub = sub_index_two_snps[xsnp.nucleotides][code]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
     seq2 = substitute(seq2, idx_to_sub)
 
     if snp_position == 'first':
