@@ -235,23 +235,64 @@ def generate_amas_for_substitution(allele1, allele2, position):
 
 def generate_amas_for_indel(allele1, allele2, position):
     """ Does not substitute any bases.
-    Based off of
-    'how to design AMA-primers for Indel_20191125[3981].pptx' \
+    
+    An example works best.
+
+    Say we have the alleles
+
+        GTGG ACGCTCGAGGACTATAG--TCAGGAGAGGTGGGCATGG
+        |||| |||||||||||||||||  |||||||||||||||||||
+        GTGG ACGCTCGAGGACTATAGTCTCAGGAGAGGTGGGCATGG
+
+    Then the upstream pairs that get generated are
+
+        ACGCTCGAGGACTATAGT
+        ||||||||||||||||||
+        ACGCTCGAGGACTATAGT
+
+        ACGCTCGAGGACTATAGTC
+        |||||||||||||||||||
+        ACGCTCGAGGACTATAGTC
+
+        ACGCTCGAGGACTATAGTCA
+        |||||||||||||||||||
+        ACGCTCGAGGACTATAGTCT
+
+        ACGCTCGAGGACTATAGTCAG
+        |||||||||||||||||||
+        ACGCTCGAGGACTATAGTCTC
+
+        ACGCTCGAGGACTATAGTCAGG
+        |||||||||||||||||||
+        ACGCTCGAGGACTATAGTCTCA
+
+        ...
+
+        ACGCTCGAGGACTATAGTCAGGAGA
+        |||||||||||||||||||    ||
+        ACGCTCGAGGACTATAGTCTCAGGA
 
     Args:
         allele1: The aligned first allele.
         allele2: The aligned second allele.
-        position: The index around which to generate primers.
+        position: The index of the indel around which to generate
+            primers.
+
+    Returns:
+        upstream_pair, downstream_pair
+
+        upstream_pair: The best AMAS pair where the majority of the
+            primer sequence is upstream of the SNP.
+        downstream_pair: The best AMAS pair where the majority of the
+            primer sequence is downstream from the SNP.
     """
 
-    """
-    It is not clear if amas primer for indels should also try the
-    upstream. The function that calls this expects both upstream
-    and downstream, so return [] for the upstream for now.
-    """
+    # Create upstream AMAS primers by moving the SNP back 17 positions
+    # and creating downstream primers from that new position.
+    pairs = zip(generate_amas_downstream(allele1, 1, position-17, 18, 26),
+                generate_amas_downstream(allele2, 2, position-17, 18, 26))
 
-    pairs = zip(generate_amas_upstream(allele1, 1, position, 1, 9),
-                generate_amas_upstream(allele2, 2, position, 1, 9))
+    # Remove pairs with the same nucleotide on the 3' end.
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
 
     # Order the pairs based on
@@ -268,16 +309,22 @@ def generate_amas_for_indel(allele1, allele2, position):
 
     upstream_pair = upstream_pairs[0] if upstream_pairs else []
 
-    pairs = zip(generate_amas_downstream(allele1, 1, position, 1, 9),
-                generate_amas_downstream(allele2, 2, position, 1, 9))
+    # Create downstream AMAS primers by moving the SNP forward 17
+    # positions and creating upstream primers from that position.
+    pairs = zip(generate_amas_upstream(allele1, 1, position+17, 18, 26),
+                generate_amas_upstream(allele2, 2, position+17, 18, 26))
 
-    # Remove the allele pairs having same base at 3' end
-    pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
+    # Remove pairs with the same nucleotide on the 5' end.
+    pairs = filter(lambda pair: pair[0][0] != pair[1][0], pairs)
 
+    # Order the pairs based on
+    # 1) The number of nucleotide differences in the first 4 bases.
+    #    More differences is preferable.
+    # 2) Length of the sequences in each pair. Longer is preferable.
     downstream_pairs = sorted(
                              pairs,
                              key=lambda pair: (
-                                 Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                                 Sequence.hamming(pair[0][:4], pair[1][:4]),
                                  len(pair[0])),
                              reverse=True
                              )

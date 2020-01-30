@@ -103,15 +103,12 @@ class Starp:
             # what the reference nucleotide is, so it must be added..
             self.snp.ref_nucleotide = str(self.allele1[self.snp.position])
 
+        # Generate the best AMAS pair depending on the type of polymorphism.
         if self.snp.type == 'substitution':
             upstream_amas, downstream_amas = generate_amas_for_substitution(
                 self.allele1_aligned, self.allele2_aligned,
                 self.snp.position
             )
-            upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                             snp_position='last')
-            downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                               snp_position='first')
 
         elif self.snp.type == 'insertion' or self.snp.type == 'deletion':
             upstream_amas, downstream_amas = generate_amas_for_indel(
@@ -119,21 +116,18 @@ class Starp:
                 self.snp.position
             )
 
-            # The PowerPoint 'docs/how to design AMAS-primers...'
-            # effectively moves the polymorphisms to the opposite
-            # side of the primer. The function substitute_bases
-            # needs to know what side the SNP is on, so by
-            # pretending primers were created downstream for
-            # upstream_amas, 
-            upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                             snp_position='last')
-            downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                               snp_position='first')
+        # Substitute bases according to
+        # docs/starp/STARP F primer design[4312].docx pages 3-13.
+        upstream_amas = substitute_bases(upstream_amas, self.snp,
+                                         snp_position='last')
+        downstream_amas = substitute_bases(downstream_amas, self.snp,
+                                           snp_position='first')
 
         if not upstream_amas and not downstream_amas:
             raise StarpError('Could not generate AMAS primers.')
 
         logging.info('Finished generating AMAS primers.')
+
         logging.info('Making reverse primers.')
 
         # Create reverse primers common to both alleles. This does not
