@@ -449,7 +449,7 @@ def rtailed(rprimers: list) -> list:
             and primer.tm <= 62]
 
 
-def rfilter(r_primers: list, amas: tuple, pcr_max: int) -> list:
+def rfilter(r_primers: list, amas: tuple, pcr_max: int, snp_position: str) -> list:
     """
     Removes the R primers meeting any of the following conditions:
     - overlap between primer and amas primer
@@ -467,6 +467,9 @@ def rfilter(r_primers: list, amas: tuple, pcr_max: int) -> list:
         snps: A list of SNP objects.
         pcr_max: An integer representing the longest allowed
             amplicon length.
+        snp_position: A string representing the position of the SNP to
+            consider between the AMAS pair. Should be either 'first' or
+            'last'.
 
     Returns:
         The primers that do not meet the above conditions.
@@ -484,13 +487,13 @@ def rfilter(r_primers: list, amas: tuple, pcr_max: int) -> list:
 
     # Filter by amplicon size depending if the amas primers are
     # upstream or downstream.
-    if amas[0].direction == 'upstream':
+    if snp_position == 'last':
         candidates = [primer for primer in candidates
                       if (amas[0].end < primer.allele1_start
                           and amas[1].end < primer.allele2_start
                           and primer.allele1_start - amas[0].end <= pcr_max
                           and primer.allele2_start - amas[1].end <= pcr_max)]
-    elif amas[0].direction == 'downstream':
+    elif snp_position == 'first':
         candidates = [primer for primer in candidates
                       if (amas[0].start > primer.allele1_end
                           and amas[1].start > primer.allele2_end

@@ -352,8 +352,7 @@ def generate_amas_upstream(allele, allele_num, pos, minimum, maximum):
     sliced = str(allele[:pos+1]).replace('-', '')
     return [AmasPrimer(sliced[0-size:],
                        allele_num,
-                       span=(len(sliced)-size, len(sliced)),
-                       direction='upstream')
+                       span=(len(sliced)-size, len(sliced)))
             for size in range(minimum, maximum+1)
             if pos >= size]
 
@@ -370,8 +369,7 @@ def generate_amas_downstream(allele, allele_num, pos, minimum, maximum):
     return [AmasPrimer(sliced[:size],
                        allele_num,
                        span=(pos-dashes_before_pos,
-                             pos+size-dashes_after_pos+is_dash),
-                       direction='downstream')
+                             pos+size-dashes_after_pos+is_dash))
             for size in range(minimum, maximum+1)
             if size <= len(sliced)]
 

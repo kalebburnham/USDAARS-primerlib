@@ -154,7 +154,7 @@ class Starp:
         # r_amas_group.
         if upstream_amas:
             downstream_rcandidates = rfilter(candidates, upstream_amas,
-                                             self.pcr_max)
+                                             self.pcr_max, snp_position='last')
 
             amas_r_group = AmasGroup(upstream_amas, downstream_rcandidates)
 
@@ -197,7 +197,7 @@ class Starp:
 
         if downstream_amas:
             upstream_rcandidates = rfilter(candidates, downstream_amas,
-                                           self.pcr_max)
+                                           self.pcr_max, snp_position='first')
 
             r_amas_group = AmasGroup(downstream_amas, upstream_rcandidates)
 

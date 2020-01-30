@@ -291,16 +291,13 @@ class AmasPrimer(Sequence):
             allele entered is allele *1* and the second is allele *2*.
         span: The start and stop positions of this primer. Should be
             [inclusive, exclusive)
-        direction: 'upstream' if the primer was created before the SNP
-            or 'downstream' if the primer was created after the SNP.
     """
 
-    def __init__(self, sequence, allele_num, span, direction):
+    def __init__(self, sequence, allele_num, span):
         super().__init__(sequence)
         self.tail = Sequence('')  # A sequence object.
         self.allele_num = None  # 1 or 2
         self.span = span
-        self.direction = direction
 
     def __len__(self):
         return len(self.sequence)
@@ -333,11 +330,6 @@ class AmasGroup:
         self.amas = amas
         self.rprimers = rprimers
 
-    @property
-    def direction(self):
-        """ Return the direction of the AMAS primers. """
-        return self.amas[0].direction
-
     def add_rtails(self):
         """ Add tails to rprimers with low melting temperature. """
         low, high = segregate(self.rprimers)
@@ -355,11 +347,6 @@ class AmasPair:
     def __init__(self, amas, rprimer):
         self.amas = amas
         self.rprimer = rprimer
-
-    @property
-    def direction(self):
-        """ Return the direction of the AMAS primers. """
-        return self.amas[0].direction
 
 class Snp:
     """
