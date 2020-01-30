@@ -31,6 +31,13 @@ def get_parser(data):
         StarpError: if format is not recognized.
     """
 
+    # If there are only two lines and the first begins with a '>', the
+    # data is in FASTA format. Remove the first line to get the
+    # sequence.
+    if len(data.splitlines()) == 2:
+        if data.startswith('>'):
+            data = data.splitlines()[1]
+
     # Test for SnpSequence
     pattern = regex.compile(r'\w|\[.\/.\]')
     matched_chars = ''.join(regex.findall(pattern, data))
