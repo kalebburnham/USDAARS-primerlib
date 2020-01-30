@@ -10,13 +10,15 @@ import regex
 
 from .exceptions import StarpError
 
-def add_tails(amas1, amas2, amplicon1, amplicon2):
+def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
     """
     Args:
         amas1: An AmasPrimer object.
         amas2: An AmasPrimer object.
         amplicon1: The length of the amplicon from the first allele.
         amplicon2: The length of the amplicon from the second allele.
+        snp_position: Position of the SNP. Should be either 'first'
+            or 'last'.
     """
     from .models import Sequence
 
@@ -40,35 +42,26 @@ def add_tails(amas1, amas2, amplicon1, amplicon2):
             frozenset({'T', 'A'}): {'T': 1, 'A': 2}
         }
 
-        # Indels pose a problem since the snp is converted
-        # to a substitution snp. This changes the position and
-        # the nucleotides. Thankfully, at least one side of the
-        # AMAS primers must differ since if they did not, they
-        # would have been removed at a previous step.
-        # This is certainly a hack but the instructions keep
-        # changing so I don't know a better way at the moment.
-        # No guarantee this works correctly.
-        if amas1[0] == amas2[0]:
-            nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
-        else:
+        if snp_position == 'first':
             nucleotides = frozenset({str(amas1[0]), str(amas2[0])})
 
-        if amas1.direction == 'downstream':
             if assigned_tail[nucleotides][str(amas1[0])] == 1:
                 amas1.tail = cut(tail1, amas1)
                 amas2.tail = cut(tail2, amas2)
             else:
                 amas1.tail = cut(tail2, amas1)
                 amas2.tail = cut(tail1, amas2)
-        elif amas1.direction == 'upstream':
+
+        elif snp_position == 'last':
+            nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
+
             if assigned_tail[nucleotides][str(amas1[-1])] == 1:
                 amas1.tail = cut(tail1, amas1)
                 amas2.tail = cut(tail2, amas2)
             else:
                 amas1.tail = cut(tail2, amas1)
                 amas2.tail = cut(tail1, amas2)
-        else:
-            raise StarpError('Something went wrong when adding tails.')
+
     elif amplicon1 - amplicon2 >= -7:
         amas1.tail = cut(tail1, amas1)
         amas2.tail = cut(tail2, amas2)
