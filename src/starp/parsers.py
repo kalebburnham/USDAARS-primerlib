@@ -32,7 +32,7 @@ def get_parser(data):
     """
 
     # Test for SnpSequence
-    pattern = regex.compile(r'\w|\(.\/.\)')
+    pattern = regex.compile(r'\w|\[.\/.\]')
     matched_chars = ''.join(regex.findall(pattern, data))
     if matched_chars == data:
         return SnpSequence(data)
@@ -62,15 +62,15 @@ class SnpSequence:
     has incorrect grammar.
     """
     def __init__(self, data):
-        SNP_PATTERN = r'\([' + SNP_ALPHABET + r']\/[' + SNP_ALPHABET + r']\)'
+        SNP_PATTERN = r'\[[' + SNP_ALPHABET + r']\/[' + SNP_ALPHABET + r']\]'
 
         """ Search for invalid characters. """
-        if regex.search(r'[^ACGT\-/()]', data):
+        if regex.search(r'[^ACGT\-/\[\]]', data):
             raise StarpError(('The accepted alphabet for a SNP sequence is '
-                              '{A, C, G, T, -, /, (, )}.'))
+                              '{A, C, G, T, -, /, [, ]}.'))
 
-        """ Search for SNPs with the same characters, eg (A/A) and (-/-). """
-        if regex.search(r'\(([ACGT-])\/(\1)\)', data):
+        """ Search for SNPs with the same characters, eg [A/A] and [-/-]. """
+        if regex.search(r'\[([ACGT-])\/(\1)\]', data):
             raise StarpError('SNPs must contain different letters from '
                              '' + SNP_ALPHABET + '!')
 
@@ -95,11 +95,11 @@ class SnpSequence:
             except StopIteration:
                 break
 
-            if c == '(':
+            if c == '[':
                 allele1.append(next(data_iter))
             elif c == '/':
                 allele2.append(next(data_iter))
-            elif c == ')':
+            elif c == ']':
                 # Ignore this.
                 pass
             else:
