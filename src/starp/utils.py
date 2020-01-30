@@ -316,106 +316,6 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
 
     return candidates
 
-def rfilter_by_binding_sites2(r_primers: list, sequences: tuple,
-                              max_num: int, amas: tuple) -> list:
-    """
-    Filter R primers by checking their binding site on the sequences.
-    One of these sequences should be the reference sequence, so one
-    binding site should be guaranteed. However, extra binding sites on
-    other sequences is strictly disallowed.
-
-    If a primer has one binding site, the complementary scores between
-    the primer and AMAS primers are calculated. If there are > 5
-    mismatched nucleotides, add the primer to the list to be returned.
-    At most, 3 primers will be returned.
-
-    A binding site for a primer on the plus strand is defined to be a
-    matching region with <= 4 nucleotide differences, with a 5'
-    mismatch or < 2 mismatches at 2nd, 3rd, or 4th position from 5'
-    end.
-
-    A binding site for a primer on the minus strand is defined to be a
-    matching region with <= 4 nucleotide differences, with a 3'
-    mismatch or < 2 mismatches at 2nd, 3rd, or 4th position from 3'
-    end.
-
-    Both the primers and their reverse complements will be checked
-    against the sequences.
-
-    This is a very expensive operation, so the first 'max_num' good
-    primers will be returned.
-
-    Args:
-        r_primers: The r_primers to check for binding sites.
-        sequences: The sequences to check the primers against.
-        max_num: Return the first 'max_num' primers with a single
-            binding site. This helps with efficiency.
-        amas: The 2-tuple containing the AMAS primers.
-
-    Raises:
-        StarpError: No binding sites could be found for a primer. All
-            primers should have at least one binding site, since they
-            were created from the reference sequence. This probably
-            means the reference sequence is not one of the sequences.
-
-    Returns:
-        The primers with exactly one binding site.
-    """
-
-    one_binding_site_primers = list()
-
-    for primer in r_primers:
-        pattern = regex.compile('(' + primer.sequence + '){s<=4}')
-        rc_pattern = regex.compile('(' + primer.rev_comp().sequence + '){s<=4}')
-
-        # Matches on the plus strand when the reverse primer is oriented the
-        # same direction. This requires a reverse complement of the primer.
-        rc_matches = iter([])
-
-        # Matches on the sequences when the reverse primer is in its default
-        # orientation.
-        matches = iter([])
-
-        for sequence in sequences:
-            rc_matches = itertools.chain(rc_matches, regex.finditer(rc_pattern, str(sequence), overlapped=True))
-            matches = itertools.chain(matches, regex.finditer(pattern, str(sequence), overlapped=True))
-
-        # Remember, reverse primers are already on the minus strand. So, the
-        # nucleotide differences on their 3' ends are checked.
-        predicate = lambda match: (primer.sequence[-1] == match.group()[-1]
-                                   or hamming(primer.sequence[-4:-1],
-                                              match.group()[-4:-1]) < 2)
-        binding_sites = filter(predicate, matches)
-
-
-        rc_binding_sites = filter(lambda match: (primer.rev_comp().sequence[0] == match.group()[0]
-                                                 or hamming(primer.rev_comp().sequence[1:4],
-                                                            match.group()[1:4]) < 2),
-                                  rc_matches)
-
-        total_binding_sites = itertools.chain(binding_sites, rc_binding_sites)
-
-        try:
-            next(total_binding_sites)
-        except StopIteration:
-            # Weird... no binding sites could be found.
-            raise StarpError('There was an issue with finding primer binding sites.')
-
-        try:
-            # If this succeeds, there are more than one binding sites.
-            next(total_binding_sites)
-        except StopIteration:
-            # Primer has exactly one binding site.
-            # Now check if it is complementary with the AMAS primers.
-            if (len(primer) - complementary_score(primer.reverse(), amas[0]) > 5
-                    and len(primer) - complementary_score(primer.reverse(), amas[1]) > 5):
-                one_binding_site_primers.append(primer)
-
-        if len(one_binding_site_primers) >= max_num:
-            break
-
-    return one_binding_site_primers
-
 def rtailed(rprimers: list) -> list:
     """
     Add tails to reverse primers as described in
@@ -447,7 +347,6 @@ def rtailed(rprimers: list) -> list:
     return [primer for primer in rprimers
             if len(primer) < 28
             and primer.tm <= 62]
-
 
 def rfilter(r_primers: list, amas: tuple, pcr_max: int, snp_position: str) -> list:
     """
