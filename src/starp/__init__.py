@@ -233,15 +233,15 @@ class Starp:
         if not amas_r_group.rprimers and not r_amas_group.rprimers:
             raise StarpError('No reverse primers found.')
 
-    def html(self):
+    def html(self, width=60):
         """
         Converts the two alleles to a human-readable, blast-like HTML
         format with SNPs converted to HTML buttons.
 
         Output will look like this:
 
-        GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
-        ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        GTACTGATGACTGACTGCNCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
+        |||||||||||||||||| |||||||||||||||||||||||||||||||||||||||||
         GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
 
         GTACTGATGACTGACTGCGCGCGCGCCGGGGGGGCTGAGATGCAGTCGTACGTCAAGCAA
@@ -258,22 +258,40 @@ class Starp:
         Raises:
             None
         """
-        WIDTH = 60
 
-        midline = ''.join(['|' if a == b else '-'
-                           for a, b in zip(str(self.allele1_aligned),
-                                           str(self.allele2_aligned))])
+        # Create the midline where '|' signifies that nucleotides are
+        # the same, 'N' means one of the nucleotides is an 'N', and '-'
+        # signifies a SNP. The dashes get replaced to spaces later, but
+        # textwrap.wrap does not work well with whitespace.
+        midline = []
+        for a, b in zip(str(self.allele1_aligned), str(self.allele2_aligned)):
+            if a == b:
+                char = '|'
+            elif a == 'N' or b == 'N':
+                char = '*'
+            else:
+                char = '-'
 
+            midline.append(char)
+
+        midline = ''.join(midline)
+
+        # Wrap the lines to the specified width.
         allele1_lines = textwrap.wrap(str(self.allele1_aligned),
-                                      width=WIDTH,
+                                      width=width,
                                       break_on_hyphens=False)
         allele2_lines = textwrap.wrap(str(self.allele2_aligned),
-                                      width=WIDTH,
+                                      width=width,
                                       break_on_hyphens=False)
         midline_lines = textwrap.wrap(midline,
-                                      width=WIDTH,
+                                      width=width,
                                       replace_whitespace=False)
 
+        # Create an array of the lines that resembles the output. Eg,
+        # line 0:   GTACTGTGC
+        # line 1:   |||| ||*|
+        # line 2:   GTACAGTNC
+        # line 3:   <empty line>
         lines_in_order = []
 
         for line_num, line in enumerate(allele1_lines):
@@ -282,9 +300,15 @@ class Starp:
             lines_in_order.append(allele2_lines[line_num])
             lines_in_order.append('')
 
+        # The HTML style of the buttons.
         button_style = '"font-size: 1em; padding: 0; \
                          border: none; cursor: pointer; background-color: lightgreen;"'
+        
+        # Signify that this is preformatted HTML code so it is not
+        # escaped in the browser. 'alignment' is the entire HTML block
+        # that will be returned.
         alignment = '<pre><p>' + '\n'.join(lines_in_order) + '</p></pre>'
+
         # Add buttons to the string. Assumes self.snps are in order.
         snps = iter(self.snps)
         alignment = list(alignment)
@@ -297,5 +321,9 @@ class Starp:
                                   + ' style='+button_style+'> </button>')
 
         alignment = ''.join(alignment)
+
+        # Replace any 'N's with whitespace. This must be done at the
+        # end so it is not mistaken for a SNP.
+        alignment = alignment.replace('*', ' ')
 
         return alignment

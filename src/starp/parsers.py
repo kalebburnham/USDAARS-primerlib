@@ -215,6 +215,9 @@ class TwoAlleles:
         for pair in zip(str(self.allele1_aligned), str(self.allele2_aligned)):
             if pair[0] == pair[1]:
                 pass # No snp here.
+            elif pair[0] == 'N' or pair[1] == 'N':
+                # No SNP will have an 'N'.
+                pass
             elif pair[0] == '-':
                 # Insertion SNP
                 descriptor = '.' + str(position-num_insertions) + 'ins' + pair[1]
