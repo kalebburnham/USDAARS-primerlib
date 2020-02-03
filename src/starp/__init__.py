@@ -265,10 +265,10 @@ class Starp:
         # textwrap.wrap does not work well with whitespace.
         midline = []
         for a, b in zip(str(self.allele1_aligned), str(self.allele2_aligned)):
-            if a == b:
-                char = '|'
-            elif a == 'N' or b == 'N':
+            if a == 'N' or b == 'N':
                 char = '*'
+            elif a == b:
+                char = '|'
             else:
                 char = '-'
 
