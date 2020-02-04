@@ -156,7 +156,7 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
                           '{primer.strand}.'))
 
     min_length = min_primer_length(tms[0])
-    max_length = max_primer_length(tms[1])
+    max_length = max_primer_length(tms[2])
 
     primers = []
 
