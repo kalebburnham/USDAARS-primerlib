@@ -327,8 +327,8 @@ class AmasPrimer(Sequence):
         return self.span[1]
 
     def rev_comp(self):
-        seq = str(self.sequence.rev_comp())
-        tail = str(self.tail.rev_comp())
+        seq = Sequence(self.sequence).rev_comp()
+        tail = self.tail.rev_comp()
         primer = AmasPrimer(seq, self.allele_num, self.span, strand=self.strand*-1)
         primer.tail = tail
         return primer
