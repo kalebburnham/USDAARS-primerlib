@@ -176,6 +176,8 @@ class Starp:
         # List of amas primers with common reverse primer.
         # [(amas1, amas2), rprimer]
         if amas_r_group:
+            # Since rprimers come after the SNP, they need to be
+            # reverse complemented to place them on the minus strand.
             amas_r_group.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
                                      for primer in amas_r_group.rprimers]
 
@@ -184,7 +186,10 @@ class Starp:
             amas_r_pairs = list(itertools.product([amas_r_group.amas],
                                                     amas_r_group.rprimers))
             for pair in amas_r_pairs:
+                # Amplicon length on first allele.
                 amplicon1 = abs(pair[0][0].start - pair[1].allele1_end)
+
+                # Amplicon length on second allele.
                 amplicon2 = abs(pair[0][1].start - pair[1].allele2_end)
                 add_tails(*pair[0], amplicon1, amplicon2, snp_position='last')
 
@@ -216,15 +221,21 @@ class Starp:
             r_amas_group = AmasGroup([], [])
 
         if r_amas_group:
-            r_amas_group.rprimers = [primer if primer.strand == -1 else primer.rev_comp()
-                                   for primer in r_amas_group.rprimers]
 
             r_amas_pairs = list(itertools.product([r_amas_group.amas],
                                                       r_amas_group.rprimers))
             for pair in r_amas_pairs:
+                # Amplicon length on first allele.
                 amplicon1 = abs(pair[0][0].end - pair[1].allele1_start)
+
+                # Amplicon length on second allele.
                 amplicon2 = abs(pair[0][1].end - pair[1].allele2_start)
                 add_tails(*pair[0], amplicon1, amplicon2, snp_position='first')
+
+            # Since AMAS primers come after the SNP, they need to be
+            # reverse complemented to place them on the minus strand.
+            r_amas_group.amas = [primer if primer.strand == -1 else primer.rev_comp()
+                                 for primer in r_amas_group.amas]
 
             self.downstream_pairs = r_amas_pairs
         else:

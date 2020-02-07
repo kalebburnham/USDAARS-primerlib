@@ -293,22 +293,30 @@ class AmasPrimer(Sequence):
             [inclusive, exclusive)
     """
 
-    def __init__(self, sequence, allele_num, span):
+    def __init__(self, sequence, allele_num, span, strand=1):
         super().__init__(sequence)
         self.tail = Sequence('')  # A sequence object.
         self.allele_num = None  # 1 or 2
         self.span = span
+        self.strand = 1
 
     def __len__(self):
         return len(self.sequence)
 
     def __str__(self):
-        return str(self.tail + self.sequence)
+        if self.strand == 1:
+            return str(self.tail + self.sequence)
+        else:
+            return str(self.sequence + self.tail)
 
     def __repr__(self):
-        return (f'AmasPrimer(tail={str(self.tail)}, '
+        return (f'AmasPrimer('
+                f'tail={str(self.tail)}, '
                 f'sequence={str(self.sequence)}, '
-                f'span={self.span})')
+                f'allele_num={self.allele_num}, '
+                f'span={self.span}, '
+                f'strand={self.strand}'
+                f')')
 
     @property
     def start(self):
@@ -317,6 +325,13 @@ class AmasPrimer(Sequence):
     @property
     def end(self):
         return self.span[1]
+
+    def rev_comp(self):
+        seq = str(self.sequence.rev_comp())
+        tail = str(self.tail.rev_comp())
+        primer = AmasPrimer(seq, self.allele_num, self.span, strand=self.strand*-1)
+        primer.tail = tail
+        return primer
     
     def html(self):
         """ One document shows the tail underlined and the substitutions
