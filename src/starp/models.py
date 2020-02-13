@@ -305,9 +305,9 @@ class AmasPrimer(Sequence):
 
     def __str__(self):
         if self.strand == 1:
-            return str(self.tail + self.sequence)
+            return str(self.tail) + str(self.sequence)
         else:
-            return str(self.sequence + self.tail)
+            return str(self.sequence) + str(self.tail)
 
     def __repr__(self):
         return (f'AmasPrimer('
@@ -342,8 +342,8 @@ class AmasGroup:
     A container for amas primers and corresponding rprimers.
     """
     def __init__(self, amas, rprimers):
-        self.amas = amas
-        self.rprimers = rprimers
+        self.amas = list(amas)
+        self.rprimers = list(rprimers)
 
     def add_rtails(self):
         """ Add tails to rprimers with low melting temperature. """
