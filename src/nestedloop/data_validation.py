@@ -1,5 +1,6 @@
 import regex
 
+from .exceptions import NestedLoopError
 from .models import Primer, Sequence
 from .parsers import PairwiseParser, XmlParser
 from .utils import binding_sites

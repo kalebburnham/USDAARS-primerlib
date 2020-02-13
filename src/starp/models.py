@@ -298,7 +298,7 @@ class AmasPrimer(Sequence):
         self.tail = Sequence('')  # A sequence object.
         self.allele_num = None  # 1 or 2
         self.span = span
-        self.strand = 1
+        self.strand = strand
 
     def __len__(self):
         return len(self.sequence)
