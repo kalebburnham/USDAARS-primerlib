@@ -1,3 +1,5 @@
+from .parsers import XmlParser, PairwiseParser
+
 def validate_input_data(data: str) -> str:
     """ Validates and returns a cleaned string of the user's input data
     with SNPs. Note that the SNP grammar is validated later.
