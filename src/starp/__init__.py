@@ -221,10 +221,14 @@ class Starp:
             r_amas_group = AmasGroup([], [])
 
         if r_amas_group:
+            # Format of r_amas_group:
+            # [[[amas1, amas2], [rprimer1, rprimer2, primer3, ...]]
 
-            r_amas_pairs = list(itertools.product([r_amas_group.amas],
-                                                      r_amas_group.rprimers))
-            for pair in r_amas_pairs:
+            # Format of r_amas_pairs:
+            # [[[amas1, amas2], rprimer], [[amas1, amas2], rprimer2], ...]
+            r_amas_pairs = list()
+
+            for pair in list(itertools.product([r_amas_group.amas], r_amas_group.rprimers)):
                 # Amplicon length on first allele.
                 amplicon1 = abs(pair[0][0].end - pair[1].allele1_start)
 
@@ -232,10 +236,9 @@ class Starp:
                 amplicon2 = abs(pair[0][1].end - pair[1].allele2_start)
                 add_tails(*pair[0], amplicon1, amplicon2, snp_position='first')
 
-            # Since AMAS primers come after the SNP, they need to be
-            # reverse complemented to place them on the minus strand.
-            r_amas_group.amas = [primer if primer.strand == -1 else primer.rev_comp()
-                                 for primer in r_amas_group.amas]
+                # Since AMAS primers come after the SNP, they need to be
+                # reverse complemented to place them on the minus strand.
+                r_amas_pairs.append([[pair[0][0].rev_comp(), pair[0][1].rev_comp()], pair[1]])
 
             self.downstream_pairs = r_amas_pairs
         else:
