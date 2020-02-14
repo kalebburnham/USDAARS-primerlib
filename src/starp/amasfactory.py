@@ -369,49 +369,14 @@ def generate_amas_downstream(allele, allele_num, pos, minimum, maximum):
     return [AmasPrimer(sliced[:size],
                        allele_num,
                        span=(pos-dashes_before_pos,
-                             pos+size-dashes_after_pos+is_dash))
+                             pos-dashes_before_pos+size))
             for size in range(minimum, maximum+1)
             if size <= len(sliced)]
 
-def substitute_bases(pair, snp, snp_position='last'):
+def substitute_bases(pair, snp_position='last'):
     """
     Substitutes bases according to Dr. Long's instructions.
-
-    The substitution principle he defines is:
-    A -> C, T -> C, G -> A, C -> T
-
-    I've tried my best to follow along to the instructions.
-
-    To calculate the index that we need to substitute, all possible
-    combinations are put into a dictionary. Since there are
-    approximately 10*10*10*6*2 = 12,000 ways to arrange the last four
-    nucleotides of an allele allowing multiple SNPs (the 10 being 4
-    nucleotides plus 6 substitution SNPs, and the 2 being the number
-    of nucleotides that define a SNP), there must be a way to
-    reduce these combinations.
-
-    The way this has been done is by grouping nucleotides and SNPs
-    according to the following mapping:
-
-    G->G
-    C->G
-    A->A
-    T->A
-    SNPs:
-    (C/G) -> P  # Since C pairs with G and A to T, I'm mapping these
-    (A/T) -> P  # to P for Paired.
-    (C/A) -> N  # Since the next 4 SNPs contain nucleotides that do
-    (C/T) -> N  # not pair with each other, I designate them N for
-    (G/A) -> N  # Non-pair.
-    (G/T) -> N
-
-    Note that the last nucleotide is NOT mapped since its value
-    must be known. For example, the last four nucleotides of an
-    allele may be G(A/T)C(A/G). Using the mapping, this becomes
-    GPG(A/G). Or, allele1_key = GPGA and allele2_key = GPGG. Then,
-    the substitution index may be gleaned from the matries.
-
-    This method works for both substitutions and indels.
+    See docs/STARP F primer design[4312].docx, pages 2-14.
 
     snp_position should be either 'first' or 'last', signifying
     if the snp is at the beginning or end of the pair.
