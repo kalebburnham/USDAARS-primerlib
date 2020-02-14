@@ -48,11 +48,5 @@ class TestAmasPrimer(unittest.TestCase):
                 allele1, allele2, snp_pos
             )
 
-        print('up')
-        print(upstream_amas)
-        print('down')
-        print(downstream_amas)
-
-
 if __name__ == "__main__":
     unittest.main()
