@@ -9,7 +9,7 @@ from .models import Sequence, Snp, AmasPrimer
 # G/C -> S and A/T -> W
 
 # What the 4-tuple means:
-# Let it be ('CG', -4, 'AT', -3)
+# Let it be ('S', -4, 'W', -3)
 # Then, if the allele has a C or G in the additional SNP position,
 # then substitute the -4th index. If it has an A or T in the
 # additional SNP position, substitute the -3 index.
@@ -48,82 +48,82 @@ sub_index_one_snp = {
 sub_index_two_snps = {
     frozenset(('C', 'G')) : {
         'SSPC' : -4, 'SSPG' : -3, 'SSNC' : -4, 'SSNG' : -3,
-        'SWPC' : -4, 'SWPG' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
-        'WSPC' : -4, 'WSPG' : -3, 'WSNC' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'SWPC' : -4, 'SWPG' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNG' : ('S', -4, 'W', -3),
+        'WSPC' : -4, 'WSPG' : -3, 'WSNC' : ('S', -3, 'W', -4), 'WSNG' : ('S', -3, 'W', -4),
         'WWPC' : -4, 'WWPG' : -3, 'WWNC' : -4, 'WWNG' : -3,
         'SPSC' : -4, 'SPSG' : -2, 'SPWC' : -4, 'SPWG' : -2,
-        'SNSC' : -4, 'SNSG' : -2, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'SNSC' : -4, 'SNSG' : -2, 'SNWC' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
         'WPSC' : -4, 'WPSG' : -2, 'WPWC' : -4, 'WPWG' : -2,
-        'WNSC' : ('CG', -2, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -4), 'WNWC' : -4, 'WNWG' : -2,
+        'WNSC' : ('S', -2, 'W', -4), 'WNSG' : ('S', -2, 'W', -4), 'WNWC' : -4, 'WNWG' : -2,
         'PSSC' : -3, 'PSSG' : -2, 'PSWC' : -3, 'PSWG' : -2,
         'PWSC' : -3, 'PWSG' : -2, 'PWWC' : -3, 'PWWG' : -2,
-        'NSSC' : -3, 'NSSG' : -2, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
-        'NWSC' : ('CG', -2, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -3), 'NWWC' : -3, 'NWWG' : -2},
+        'NSSC' : -3, 'NSSG' : -2, 'NSWC' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
+        'NWSC' : ('S', -2, 'W', -3), 'NWSG' : ('S', -2, 'W', -3), 'NWWC' : -3, 'NWWG' : -2},
     frozenset(('C', 'T')) : {
         'SSPC' : -4, 'SSPT' : -3, 'SSNC' : -4, 'SSNT' : -3,
-        'SWPC' : -4, 'SWPT' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNT' : ('CG', -4, 'AT', -3),
-        'WSPC' : -3, 'WSPT' : -4, 'WSNC' : ('CG', -3, 'AT', -4), 'WSNT' : ('CG', -3, 'AT', -4),
+        'SWPC' : -4, 'SWPT' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNT' : ('S', -4, 'W', -3),
+        'WSPC' : -3, 'WSPT' : -4, 'WSNC' : ('S', -3, 'W', -4), 'WSNT' : ('S', -3, 'W', -4),
         'WWPC' : -4, 'WWPT' : -3, 'WWNC' : -4, 'WWNT' : -3,
         'SPSC' : -2, 'SPST' : -4, 'SPWC' : -4, 'SPWT' : -2,
-        'SNSC' : -2, 'SNST' : -4, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWT' : ('CG', -4, 'AT', -2),
+        'SNSC' : -2, 'SNST' : -4, 'SNWC' : ('S', -4, 'W', -2), 'SNWT' : ('S', -4, 'W', -2),
         'WPSC' : -2, 'WPST' : -4, 'WPWC' : -2, 'WPWT' : -4,
-        'WNSC' : ('CG', -2, 'AT', -2), 'WNST' : ('CG', -4, 'AT', -4), 'WNWC' : -2, 'WNWT' : -4,
+        'WNSC' : ('S', -2, 'W', -2), 'WNST' : ('S', -4, 'W', -4), 'WNWC' : -2, 'WNWT' : -4,
         'PSSC' : -2, 'PSST' : -4, 'PSWC' : -3, 'PSWT' : -2,
         'PWSC' : -2, 'PWST' : -3, 'PWWC' : -2, 'PWWT' : -3,
-        'NSSC' : -2, 'NSST' : -3, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWT' : ('CG', -3, 'AT', -2),
-        'NWGC' : ('CG', -2, 'AT', -2), 'NWGT' : ('CG', -3, 'AT', -3), 'NWWC' : -2, 'NWWT' : -3},
+        'NSSC' : -2, 'NSST' : -3, 'NSWC' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
+        'NWGC' : ('S', -2, 'W', -2), 'NWGT' : ('S', -3, 'W', -3), 'NWWC' : -2, 'NWWT' : -3},
     frozenset(('C', 'A')) : {
         'SSPC' : -3, 'SSPA' : -4, 'SSNC' : -3, 'SSNA' : -4,
-        'SWPC' : -4, 'SWPA' : -3, 'SWNC' : ('CG', -4, 'AT', -3), 'SWNA' : ('CG', -4, 'AT', -3),
-        'WSPC' : -3, 'WSPA' : -4, 'WSNC' : ('CG', -3, 'AT', -3), 'WSNA' : ('CG', -4, 'AT', -4),
+        'SWPC' : -4, 'SWPA' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNA' : ('S', -4, 'W', -3),
+        'WSPC' : -3, 'WSPA' : -4, 'WSNC' : ('S', -3, 'W', -3), 'WSNA' : ('S', -4, 'W', -4),
         'WWPC' : -3, 'WWPA' : -4, 'WWNC' : -3, 'WWNA' : -4,
         'SPSC' : -2, 'SPSA' : -4, 'SPWC' : -4, 'SPWA' : -2,
-        'SNSC' : -2, 'SNSA' : -4, 'SNWC' : ('CG', -4, 'AT', -2), 'SNWA' : ('CG', -4, 'AT', -2),
+        'SNSC' : -2, 'SNSA' : -4, 'SNWC' : ('S', -4, 'W', -2), 'SNWA' : ('S', -4, 'W', -2),
         'WPSC' : -2, 'WPSA' : -4, 'WPWC' : -2, 'WPWA' : -4,
-        'WNSC' : ('CG', -2, 'AT', -2), 'WNSA' : ('CG', -4, 'AT', -4), 'WNWC' : -2, 'WNWA' : -4,
+        'WNSC' : ('S', -2, 'W', -2), 'WNSA' : ('S', -4, 'W', -4), 'WNWC' : -2, 'WNWA' : -4,
         'PSSC' : -2, 'PSSA' : -3, 'PSWC' : -3, 'PSWA' : -2,
         'PWSC' : -2, 'PWSA' : -3, 'PWWC' : -2, 'PWWA' : -3,
-        'NSSC' : -2, 'NSSA' : -3, 'NSWC' : ('CG', -3, 'AT', -2), 'NSWA' : ('CG', -3, 'AT', -2),
-        'NWSC' : ('CG', -2, 'AT', -2), 'NWSA' : ('CG', -3, 'AT', -3), 'NWWC' : -2, 'NWWA' : -3},
+        'NSSC' : -2, 'NSSA' : -3, 'NSWC' : ('S', -3, 'W', -2), 'NSWA' : ('S', -3, 'W', -2),
+        'NWSC' : ('S', -2, 'W', -2), 'NWSA' : ('S', -3, 'W', -3), 'NWWC' : -2, 'NWWA' : -3},
     frozenset(('G', 'T')) : {
         'SSPT' : -3, 'SSPG' : -4, 'SSNT' : -3, 'SSNG' : -4,
-        'SWPT' : -3, 'SWPG' : -4, 'SWNT' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
-        'WSPT' : -4, 'WSPG' : -3, 'WSNT' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'SWPT' : -3, 'SWPG' : -4, 'SWNT' : ('S', -4, 'W', -3), 'SWNG' : ('S', -4, 'W', -3),
+        'WSPT' : -4, 'WSPG' : -3, 'WSNT' : ('S', -3, 'W', -4), 'WSNG' : ('S', -3, 'W', -4),
         'WWPT' : -3, 'WWPG' : -4, 'WWNT' : -3, 'WWNG' : -4,
         'SPST' : -4, 'SPSG' : -2, 'SPWT' : -2, 'SPWG' : -4,
-        'SNST' : -4, 'SNSG' : -2, 'SNWT' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'SNST' : -4, 'SNSG' : -2, 'SNWT' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
         'WPST' : -4, 'WPSG' : -2, 'WPWT' : -4, 'WPWG' : -2,
-        'WNST' : ('CG', -4, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -2), 'WNWT' : -4, 'WNWG' : -2,
+        'WNST' : ('S', -4, 'W', -4), 'WNSG' : ('S', -2, 'W', -2), 'WNWT' : -4, 'WNWG' : -2,
         'PSST' : -3, 'PSSG' : -2, 'PSWT' : -2, 'PSWG' : -3,
         'PWST' : -3, 'PWSG' : -2, 'PWWT' : -3, 'PWWG' : -2,
-        'NSST' : -3, 'NSSG' : -2, 'NSWT' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
-        'NWST' : ('CG', -3, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -2), 'NWWT' : -3, 'NWWG' : -2},
+        'NSST' : -3, 'NSSG' : -2, 'NSWT' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
+        'NWST' : ('S', -3, 'W', -3), 'NWSG' : ('S', -2, 'W', -2), 'NWWT' : -3, 'NWWG' : -2},
     frozenset(('G', 'A')) : {
         'SSPA' : -4, 'SSPG' : -3, 'SSNA' : -4, 'SSNG' : -3,
-        'SWPA' : -3, 'SWPG' : -4, 'SWNA' : ('CG', -4, 'AT', -3), 'SWNG' : ('CG', -4, 'AT', -3),
-        'WSPA' : -4, 'WSPG' : -3, 'WSNA' : ('CG', -3, 'AT', -4), 'WSNG' : ('CG', -3, 'AT', -4),
+        'SWPA' : -3, 'SWPG' : -4, 'SWNA' : ('S', -4, 'W', -3), 'SWNG' : ('S', -4, 'W', -3),
+        'WSPA' : -4, 'WSPG' : -3, 'WSNA' : ('S', -3, 'W', -4), 'WSNG' : ('S', -3, 'W', -4),
         'WWPA' : -4, 'WWPG' : -3, 'WWNA' : -4, 'WWNG' : -3,
         'SPSA' : -4, 'SPSG' : -2, 'SPWA' : -2, 'SPWG' : -4,
-        'SNSA' : -4, 'SNSG' : -2, 'SNWA' : ('CG', -4, 'AT', -2), 'SNWG' : ('CG', -4, 'AT', -2),
+        'SNSA' : -4, 'SNSG' : -2, 'SNWA' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
         'WPSA' : -4, 'WPSG' : -2, 'WPWA' : -4, 'WPWG' : -2,
-        'WNSA' : ('CG', -4, 'AT', -4), 'WNSG' : ('CG', -2, 'AT', -2), 'WNWA' : -4, 'WNWG' : -2,
+        'WNSA' : ('S', -4, 'W', -4), 'WNSG' : ('S', -2, 'W', -2), 'WNWA' : -4, 'WNWG' : -2,
         'PSSA' : -3, 'PSSG' : -2, 'PSWA' : -2, 'PSWG' : -3,
         'PWSA' : -3, 'PWSG' : -2, 'PWWA' : -3, 'PWWG' : -2,
-        'NSSA' : -3, 'NSSG' : -2, 'NSWA' : ('CG', -3, 'AT', -2), 'NSWG' : ('CG', -3, 'AT', -2),
-        'NWSA' : ('CG', -3, 'AT', -3), 'NWSG' : ('CG', -2, 'AT', -2), 'NWWA' : -3, 'NWWG' : -2},
+        'NSSA' : -3, 'NSSG' : -2, 'NSWA' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
+        'NWSA' : ('S', -3, 'W', -3), 'NWSG' : ('S', -2, 'W', -2), 'NWWA' : -3, 'NWWG' : -2},
     frozenset(('A', 'T')) : {
         'SSPA' : -4, 'SSPT' : -3, 'SSNA' : -4, 'SSNT' : -3,
-        'SWPA' : -4, 'SWPT' : -3, 'SWNA' : ('CG', -4, 'AT', -3), 'SWNT' : ('CG', -4, 'AT', -3),
-        'WSPA' : -4, 'WSPT' : -3, 'WSNA' : ('CG', -3, 'AT', -4), 'WSNT' : ('CG', -3, 'AT', -4),
+        'SWPA' : -4, 'SWPT' : -3, 'SWNA' : ('S', -4, 'W', -3), 'SWNT' : ('S', -4, 'W', -3),
+        'WSPA' : -4, 'WSPT' : -3, 'WSNA' : ('S', -3, 'W', -4), 'WSNT' : ('S', -3, 'W', -4),
         'WWPA' : -4, 'WWPT' : -3, 'WWNA' : -4, 'WWNT' : -3,
         'SPSA' : -4, 'SPST' : -2, 'SPWA' : -4, 'SPWT' : -2,
-        'SNSA' : -4, 'SNST' : -2, 'SNWA' : ('CG', -4, 'AT', -2), 'SNWT' : ('CG', -4, 'AT', -2),
+        'SNSA' : -4, 'SNST' : -2, 'SNWA' : ('S', -4, 'W', -2), 'SNWT' : ('S', -4, 'W', -2),
         'WPSA' : -4, 'WPST' : -2, 'WPWA' : -4, 'WPWT' : -2,
-        'WNSA' : ('CG', -2, 'AT', -4), 'WNST' : ('CG', -2, 'AT', -4), 'WNWA' : -4, 'WNWT' : -2,
+        'WNSA' : ('S', -2, 'W', -4), 'WNST' : ('S', -2, 'W', -4), 'WNWA' : -4, 'WNWT' : -2,
         'PSSA' : -3, 'PSST' : -2, 'PSWA' : -3, 'PSWT' : -2,
         'PWSA' : -3, 'PWST' : -2, 'PWWA' : -3, 'PWWT' : -2,
-        'NSSA' : -3, 'NSST' : -2, 'NSWA' : ('CG', -3, 'AT', -2), 'NSWT' : ('CG', -3, 'AT', -2),
-        'NWSA' : ('CG', -2, 'AT', -3), 'NWST' : ('CG', -2, 'AT', -3), 'NWWA' : -3, 'NWWT' : -2}}
+        'NSSA' : -3, 'NSST' : -2, 'NSWA' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
+        'NWSA' : ('S', -2, 'W', -3), 'NWST' : ('S', -2, 'W', -3), 'NWWA' : -3, 'NWWT' : -2}}
 
 def best_pair(pairs):
     """
@@ -458,13 +458,21 @@ def substitute_with_one_snp(pair, snp_position='last'):
 
 def substitute_with_two_snps(pair, snp, snp_position='last'):
     """
-    Many times we only need to differentiate between a C/G or A/T snp,
-    and all the rest. To do this, replace the Snp index with a P if it
-    is a C/G or A/T snp (P for Paired) and N for all the rest.
+    Substitute the bases of the pair sequences when there are two SNPs
+    between the sequences in the last four bases.
+
+    For reference, see
+    docs/STARP F primer design[4312].docx
     """
     pair = (str(pair[0]), str(pair[1]))
 
-    # Place the snp at the end so we don't have to make this method twice.
+    # Long's written instructions assume the SNP is placed at the end of
+    # the sequences. However, this function will also be called with a
+    # SNP at the beginning of the sequences. In this case, his
+    # verbal instructions were to perform the same operations but at the
+    # beginning of the sequences. To avoid making another very similar
+    # function, the sequences are reversed here then returned to their
+    # original orientation at the end of the function.
     if snp_position == 'first':
         pair = (pair[0][::-1], pair[1][::-1])
 
@@ -485,21 +493,44 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
 
     xsnp = snps[0]  # extra snp
 
+    # Part of the codes created later concerns themselves about whether
+    # the additional SNP is a [C/G] or [A/T] SNP, or the others (see
+    # STARP F primer design[4312].docx, page 6). To simplify the possible
+    # number of codes, [C/G] and [A/T] SNPs are designated as 'P' for paired
+    # and all the rest are designated 'N'.
     if xsnp.nucleotides == {'C', 'G'} or xsnp.nucleotides == {'A', 'T'}:
         placeholder = 'P'
     else:
         placeholder = 'N'
 
-    seq1 = pair[0][:xsnp.position] + placeholder + pair[0][xsnp.position+1:]
-    code = seq_to_ambiguity_code(seq1[-4:-1]) + pair[0][-1]
+    encoded_seq = pair[0][:xsnp.position] + placeholder + pair[0][xsnp.position+1:]
+    code = seq_to_ambiguity_code(encoded_seq[-4:-1]) + pair[0][-1]
     idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
-    seq1 = substitute(seq1, idx_to_sub)
 
-    seq2 = pair[1][:xsnp.position] + placeholder + pair[1][xsnp.position+1:]
-    code = seq_to_ambiguity_code(seq2[-4:-1]) + pair[1][-1]
+    # Check if a 4-tuple was returned from the dict.
+    if len(idx_to_sub) == 4:
+        if encoded_seq[xsnp.position] == idx_to_sub[0]:
+            idx_to_sub = idx_to_sub[1]
+        else:
+            idx_to_sub = idx_to_sub[3]
+
+    seq1 = substitute(pair[0], idx_to_sub)
+
+    encoded_seq = pair[1][:xsnp.position] + placeholder + pair[1][xsnp.position+1:]
+    code = seq_to_ambiguity_code(encoded_seq[-4:-1]) + pair[1][-1]
     idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
-    seq2 = substitute(seq2, idx_to_sub)
 
+    # Check if a 4-tuple was returned from the dict.
+    if len(idx_to_sub) == 4:
+        if encoded_seq[xsnp.position] == idx_to_sub[0]:
+            idx_to_sub = idx_to_sub[1]
+        else:
+            idx_to_sub = idx_to_sub[3]
+
+    seq2 = substitute(pair[1], idx_to_sub)
+
+    # Return the sequences to their original orientation if they were
+    # reversed at the start of the method.
     if snp_position == 'first':
         seq1 = seq1[::-1]
         seq2 = seq2[::-1]

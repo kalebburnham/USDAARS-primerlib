@@ -116,10 +116,8 @@ class Starp:
 
         # Substitute bases according to
         # docs/starp/STARP F primer design[4312].docx pages 3-13.
-        upstream_amas = substitute_bases(upstream_amas, self.snp,
-                                         snp_position='last')
-        downstream_amas = substitute_bases(downstream_amas, self.snp,
-                                           snp_position='first')
+        upstream_amas = substitute_bases(upstream_amas, snp_position='last')
+        downstream_amas = substitute_bases(downstream_amas, snp_position='first')
 
         if not upstream_amas and not downstream_amas:
             raise StarpError('Could not generate AMAS primers.')
