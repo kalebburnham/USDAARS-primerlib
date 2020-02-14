@@ -423,7 +423,12 @@ class Snp:
         self.new_nucleotide = parser.new_nucleotide()
 
     def __eq__(self, other):
-        return self.descriptor == other.descriptor
+        return (self.descriptor == other.descriptor
+                and self.prefix == other.prefix
+                and self.position == other.position
+                and self.type == other.type
+                and self.ref_nucleotide == other.ref_nucleotide
+                and self.new_nucleotide == other.new_nucleotide)
 
     def __hash__(self):
         return super.__hash__(self)

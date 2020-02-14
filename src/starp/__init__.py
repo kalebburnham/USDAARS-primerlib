@@ -81,7 +81,10 @@ class Starp:
         logging.getLogger().setLevel(logging.INFO)
 
     def set_snp(self, descriptor: str):
-        self.snp = Snp(descriptor)
+        snp = Snp(descriptor)
+        if snp.type == 'deletion':
+            snp.ref_nucleotide = str(self.allele1_aligned[snp.position])
+        self.snp = snp
 
     def run(self):
         if not self.snp:
@@ -97,11 +100,6 @@ class Starp:
         snp_index = aligned_position(self.snp.position, self.snps)
 
         logging.info('Generating AMAS primers.')
-
-        if self.snp.type == 'deletion':
-            # In deletion snps, the descriptor does not contain information on
-            # what the reference nucleotide is, so it must be added..
-            self.snp.ref_nucleotide = str(self.allele1[self.snp.position])
 
         # Generate the best AMAS pair depending on the type of polymorphism.
         if self.snp.type == 'substitution':

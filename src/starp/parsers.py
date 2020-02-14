@@ -226,9 +226,14 @@ class TwoAlleles:
                 snps.append(Snp(descriptor))
                 num_insertions += 1
             elif pair[1] == '-':
-                # Deletion SNP
+                # Deletion SNP. The descriptor does not contain any
+                # information on reference/new nucleotides, but the
+                # reference nucleotide is known so it is manually
+                # entered.
                 descriptor = '.' + str(position) + 'del'
-                snps.append(Snp(descriptor))
+                snp = Snp(descriptor)
+                snp.ref_nucleotide = str(self.allele1_aligned[position])
+                snps.append(snp)
             else:
                 # Substitution SNP
                 descriptor = '.' + str(position) + str(pair[0]) + '>' + str(pair[1])

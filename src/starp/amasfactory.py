@@ -427,8 +427,10 @@ def substitute_bases(pair, snp, snp_position='last'):
         # The SNP is at the beginning of the sequence, e.g.
         # pair[0] = XNNNNNNNN...
         # pair[1] = YNNNNNNNN...
+        snp = TwoAlleles(f'>\n{pair[0][0]}\n>\n{pair[1][0]}').snps()[0]
         local_snps = TwoAlleles(f'>\n{pair[0][1:4]}\n>\n{pair[1][1:4]}').snps()
     elif snp_position == 'last':
+        snp = TwoAlleles(f'>\n{pair[0][-1]}\n>\n{pair[1][-1]}').snps()[0]
         local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
 
     if len(local_snps) == 0:
