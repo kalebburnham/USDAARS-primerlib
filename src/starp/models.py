@@ -326,6 +326,12 @@ class AmasPrimer(Sequence):
     def end(self):
         return self.span[1]
 
+    @property
+    def tm(self):
+        # Melting temperature is returned for the sequence without the
+        # tail only.
+        return Sequence(self.sequence).tm
+
     def rev_comp(self):
         seq = Sequence(self.sequence).rev_comp()
         tail = self.tail.rev_comp()
