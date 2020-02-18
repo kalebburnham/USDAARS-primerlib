@@ -336,6 +336,12 @@ class AmasPrimer(Sequence):
     def html(self):
         """ One document shows the tail underlined and the substitutions
         highlighted. """
+        if self.strand == 1:
+            markup = f'<span>{str(self.tail)}<u>{str(self.sequence)}</u></span>'
+        else:
+            markup = f'<span><u>{str(self.sequence)}</u>{str(self.tail)}</span>'
+
+        return markup
 
 class AmasGroup:
     """

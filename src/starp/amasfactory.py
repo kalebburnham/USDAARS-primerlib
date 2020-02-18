@@ -299,13 +299,12 @@ def generate_amas_for_indel(allele1, allele2, position):
     # 1) The number of nucleotide differences in the last 4 bases.
     #    More differences is preferable.
     # 2) Length of the sequences in each pair. Longer is preferable.
-    upstream_pairs = sorted(
-                         pairs,
-                         key=lambda pair: (
-                             Sequence.hamming(pair[0][-4:], pair[1][-4:]),
-                             len(pair[0])),
-                         reverse=True
-                         )
+    upstream_pairs = sorted(pairs,
+                            key=lambda pair: (
+                                Sequence.hamming(pair[0][-4:], pair[1][-4:]),
+                                len(pair[0])),
+                            reverse=True
+                            )
 
     upstream_pair = upstream_pairs[0] if upstream_pairs else []
 
