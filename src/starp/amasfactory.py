@@ -6,13 +6,27 @@ from .parsers import TwoAlleles
 from .exceptions import StarpError
 from .models import Sequence, Snp, AmasPrimer
 
-# G/C -> S and A/T -> W
-
-# What the 4-tuple means:
-# Let it be ('S', -4, 'W', -3)
+# These substitution matrices were created to deal with the
+# combinatorial explosion of possible primer endings given by
+# docs/starp/STARP F primer design[4312].docx
+#
+# Exempting the final nucleotide, 'G' and 'C' nucleotides were changed
+# to an 'S' while 'A' and 'T' nucleotides were changed to a 'W'.
+# 'P' represents a [C/G] OR [A/T] snps while 'N' represents all
+# other substitution snps.
+#
+# A single integer means to substitute that index using the function
+# substitute().
+#
+# A 2-tuple means to substitute those two indices.
+#
+# A 4-tuple is more complicated, and is only used when there is an
+# additional SNP. An example describes its purpose best.
+# Let it be ('S', -4, 'W', -3).
 # Then, if the allele has a C or G in the additional SNP position,
 # then substitute the -4th index. If it has an A or T in the
 # additional SNP position, substitute the -3 index.
+
 sub_index_one_snp = {
     frozenset(('C', 'G')) : {
         'SSSC' : -3, 'SSSG' : -2, 'SSWC' : (-3, -4), 'SSWG' : (-3, -4),
@@ -408,17 +422,22 @@ def substitute_bases(pair, snp_position='last'):
 
     return pair
 
-
-
 def substitute_with_one_snp(pair, snp_position='last'):
     """
+    Substitute the bases of the pair's sequences when the only SNP
+    occurs at either the first or last nucleotide. This function probably
+    should only be called by substitute_bases().
+
+    Notation for ambiguity codes comes from
     http://www.reverse-complement.com/ambiguity.html
+
     Ambiguity codes:
     G/C = S
     A/T = W
 
     Args:
         pair: A tuple of same-length strings or sequences.
+        snp_position: Acceptable values are 'first' and 'last'.
 
     Returns:
         A 2-tuple of the pair with appropriate bases substituted
@@ -458,7 +477,8 @@ def substitute_with_one_snp(pair, snp_position='last'):
 def substitute_with_two_snps(pair, snp, snp_position='last'):
     """
     Substitute the bases of the pair sequences when there are two SNPs
-    between the sequences in the last four bases.
+    between the sequences in the last four bases. This function probably
+    should only be called by substitute_bases().
 
     For reference, see
     docs/STARP F primer design[4312].docx
@@ -479,7 +499,6 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
         raise ValueError('The sequences do not have a SNP in the last '
                          'position.')
 
-    
     # All SNPs between the two alleles.
     snps = TwoAlleles(f'>\n{pair[0]}\n>\n{pair[1]}').snps()
 
@@ -507,11 +526,12 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
 
     # Check if a 4-tuple was returned from the dict.
-    if len(idx_to_sub) == 4:
-        if encoded_seq[xsnp.position] == idx_to_sub[0]:
-            idx_to_sub = idx_to_sub[1]
-        else:
-            idx_to_sub = idx_to_sub[3]
+    if isinstance(idx_to_sub, tuple):
+        if len(idx_to_sub) == 4:
+            if encoded_seq[xsnp.position] == idx_to_sub[0]:
+                idx_to_sub = idx_to_sub[1]
+            else:
+                idx_to_sub = idx_to_sub[3]
 
     seq1 = substitute(pair[0], idx_to_sub)
 
@@ -520,11 +540,12 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
 
     # Check if a 4-tuple was returned from the dict.
-    if len(idx_to_sub) == 4:
-        if encoded_seq[xsnp.position] == idx_to_sub[0]:
-            idx_to_sub = idx_to_sub[1]
-        else:
-            idx_to_sub = idx_to_sub[3]
+    if isinstance(idx_to_sub, tuple):
+        if len(idx_to_sub) == 4:
+            if encoded_seq[xsnp.position] == idx_to_sub[0]:
+                idx_to_sub = idx_to_sub[1]
+            else:
+                idx_to_sub = idx_to_sub[3]
 
     seq2 = substitute(pair[1], idx_to_sub)
 
