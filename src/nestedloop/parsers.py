@@ -7,8 +7,6 @@ import textwrap
 
 from bs4 import BeautifulSoup
 
-from .models import Hsp
-
 # Any parsers needed for parsing BLAST data should be placed here.
 # Note that it is not recommended to parse the text output from BLAST
 # since that format has changed in the past and could change in the
