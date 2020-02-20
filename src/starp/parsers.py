@@ -7,7 +7,7 @@ import regex
 from bs4 import BeautifulSoup
 
 from .exceptions import StarpError
-from .models import Hsp, Sequence, Snp
+from .models import Sequence, Snp
 
 ALPHABET = 'ACGT-/()'
 SNP_ALPHABET = 'ACGT-'
@@ -245,120 +245,41 @@ class TwoAlleles:
 # *********
 # Nontarget parsers
 class XmlParser:
-    """ Take XML data from BLAST searches and put them into HSP
-    objects. Works with BLAST XML version 1.0.
-    """
+    """ Returns a list of hit sequences from BLAST XML data. """
 
-    def __init__(self, size=80):
-        """ size is the length of each line in a human-readable
-        pairwise output. Not actually used in the parsing.
-        """
-        self.size = size
+    def __init__(self):
+        pass
 
     def parse(self, xml):
         """ Returns a list of hit sequences from the xml data. """
         soup = BeautifulSoup(xml, 'xml')
         hseqs = soup.find_all('Hsp_hseq')
-        return [hseq.get_text() for hseq in hseqs]
-
-    def parse2(self, xml_data):
-        """ Return a list of strings of HSPs with web alignment that
-        looks like this:
-
-        GTAGTCATGCGTATGCGTATGCACATTAAGTCGTGTACTGACTG
-        ||||||||||||||||||||||||  |||||||||||||| |||
-        GTAGTCATGCGTATGCGTATGCACCGTAAGTCGTGTACTGACTG
-
-        GTAGTCATGCGTATGCGTATGCACATTAAGTCGTGTACTGACTG
-        ||||||||||||||||||||||||  |||||||||||||| |||
-        GTAGTCATGCGTATGCGTATGCACCGTAAGTCGTGTACTGACTG
-
-        Blast result should be in XML.
-        """
-        hsps = list()
-
-        # The Internet Explorer viewer displays XML with
-        # leading dashes to collapse sections.
-        # If these dashes are copied, it causes issues with
-        # the parsing. They are removed here.
-        xml_lines = xml_data.splitlines()
-        for line in xml_lines:
-            if line.startswith('-'):
-                line = line[1:]
-        xml_data = ''.join(xml_lines)
-
-        # Change the dashes in these examples to underscores,
-        # since dashes can mess up the parsing.
-        xml_data = re.sub(r'query-', 'query_', xml_data)
-        xml_data = re.sub(r'hit-', 'hit_', xml_data)
-
-        soup = BeautifulSoup(xml_data, 'lxml-xml')
-        for hit in soup.find_all('Hit'):
-
-            hit_accession = hit.Hit_accession.text
-            for hsp in hit.find_all('Hsp'):
-                if int(hsp.Hsp_hit_frame.text) == -1:
-                    # If the hit frame is -1, the query string is
-                    # reversed in the output
-                    q_from = int(hsp.Hsp_query_to.text)
-                    q_to = int(hsp.Hsp_query_from.text)
-                    s_from = int(hsp.Hsp_hit_to.text)
-                    s_to = int(hsp.Hsp_hit_from.text)
-
-                    q_seq = hsp.Hsp_qseq.text[::-1]
-                    s_seq = hsp.Hsp_hseq.text[::-1]
-                    midline = hsp.Hsp_midline.text[::-1]
-                else:
-                    q_from = int(hsp.Hsp_query_from.text)
-                    q_to = int(hsp.Hsp_query_to.text)
-                    s_from = int(hsp.Hsp_hit_from.text)
-                    s_to = int(hsp.Hsp_hit_to.text)
-
-                    q_seq = hsp.Hsp_qseq.text
-                    s_seq = hsp.Hsp_hseq.text
-                    midline = hsp.Hsp_midline.text
-
-                q = self._str2list(q_seq)
-                s = self._str2list(s_seq)
-                m = self._str2list(midline)
-
-                rows = list()
-                for i in range(len(q)):
-                    rows.append(q[i] + '\n' + m[i] + '\n' + s[i] + '\n\n')
-
-                web_alignment = ''.join(rows)
-
-                hsps.append(Hsp(hit_accession, q_from, q_to, s_from, s_to,
-                                q_seq, s_seq, midline, web_alignment))
-        if hsps:
-            if hsps[0].midline.count('|') == len(hsps[0].q_seq):
-                del hsps[0]
-
-        return hsps
-
-    def _str2list(self, s):
-        """ 
-        Break s into a list of lines where each line is at most
-        self.size characters long.
-        """
-        lines = list()
-        full_rows = int(len(s) / self.size)
-        for i in range(full_rows):
-            lines.append(s[i*self.size:(i+1)*self.size])
-        lines.append(s[full_rows*self.size:])
-        return lines
+        return [hseq.get_text().replace('-', '') for hseq in hseqs]
 
 class PairwiseParser:
     """
     Pairwise data is the human-readable blast output. It looks like
 
-            100  TGACTGAGTGTGTACCAGATAGCTTGCGTCAGTCGAGTCAT 141
-                 |||||||||||||||||||||||||||||||||||||||||
-            4930 TGACTGAGTGTGTACCAGATAGCTTGCGTCAGTCGAGTCAT 4971
+    Score =  569 bits (308),  Expect = 4e-159
+    Identities = 478/561 (85%), Gaps = 8/561 (1%)
+    Strand=Plus/Plus
 
-            353   TGTCTGTACAT....
-                  |||||||||||....
-            23490 TGTCTGTACAT....
+    Query  2643       TATCTTCATTGTATTGATTTTATAACCGATTCCAAAATGTATTCTTAAAGGTACATCATC  2702
+                      |||| ||||||||||||| |  ||||  |||   ||||| |||| ||||||||| |||||
+    Sbjct  586624978  TATCCTCATTGTATTGATCTATTAACTAATTATTAAATGCATTCATAAAGGTACCTCATC  586625037
+
+    Query  2703       GTAATTGATGATATATGGGATGAAAAAGTGTGGGAATTCATTAA-T-TGCGCTTTCTCCA  2760
+                      ||||| |||||||||||| |||||||||  ||||| ||  |||| | ||| |||| ||||
+    Sbjct  586625038  GTAATCGATGATATATGGAATGAAAAAGCATGGGAGTTACTTAAGTGTGC-CTTT-TCCA  586625095
+
+    Score =  169 bits (91),  Expect = 2e-38
+    Identities = 100/104 (96%), Gaps = 2/104 (2%)
+    Strand=Plus/Minus
+
+
+    Query  1          TGCGATGACGGAAAAAAAAA-GGTGGTGGGAGTATGACGAAAATAAACCAGCGAAAATTA  59
+                      ||||||||| |||||||||| || ||||||||||||||||||||||||||||||||||||
+    Sbjct  148076245  TGCGATGAC-GAAAAAAAAACGGCGGTGGGAGTATGACGAAAATAAACCAGCGAAAATTA  148076187
 
     Note that it is not recommended to use this format.
     """
@@ -368,100 +289,35 @@ class PairwiseParser:
 
     def parse(self, data):
         """
-        data - the pairwise output from BLAST.
-        Since each site uses different formats, we have to be careful
-        and only look for the query, midline, and subjects from each
-        result and must ignore all the metadata of each hit. This is
-        achieved by reading line-by-line.
-
-        Keep in mind it is NOT recommended to use this type of data
-        in the primer programs because the outputs can change over time,
-        they differ between BLAST implementations, and the user input
-        is non-standardized. It exists solely because some sites don't
-        offer other formats (See: Aegilops Tauschii Genome Sequencing
-        Project, Oct. 2019).
+        Returns a list of the subject sequence, aka hit sequences (hseqs).
         """
-        hsps = list()
+        data = self.tokenize(data)
 
-        lines = data.splitlines()
-        iterator = iter(lines)
+        hseqs = []
+        hit_sequence = ''
 
-        query_lines = list()
-        mid_lines = list()
-        subject_lines = list()
+        idx = 0
+        while idx < len(data):
+            if data[idx] == 'Score':
+                # A new alignment is starting. Save the current
+                # hit sequence if it is nonempty.
+                if hit_sequence:
+                    hseqs.append(hit_sequence)
+                    hit_sequence = ''
 
-        try:
-            while True:
-                line = next(iterator)
-                if line.startswith('Query '):
-                    preface_length = self.get_preface_length(line)
-                    start, stop = self.get_seq_start_stop(line)
-                    query_line = line
-                    mid_line = next(iterator)
-                    subject_line = next(iterator)
-                    blank_line = next(iterator)
+            if data[idx] == 'Sbjct':
+                # Sbjct line found. The sequence is 2 tokens away.
+                idx += 2
+                hit_sequence += data[idx].replace('-', '')
 
-                    query_lines.append(query_line[start:stop])
-                    mid_lines.append(mid_line[start:stop])
-                    subject_lines.append(subject_line[start:stop])
-                elif query_lines:
-                    # Save the hit, if there is one.
-                    query_seq = ''.join(query_lines)
-                    midline = ''.join(mid_lines)
-                    subject_seq = ''.join(subject_lines)
-                    # Unfortunately, we have to ignore all the metadata
-                    # because this format can be wildly different
-                    # between sites. Also, how the user inputs this data
-                    # is not standardized.
-                    hsps.append(Hsp(hit_accession='',
-                                    q_from=0,
-                                    q_to=0,
-                                    s_from=0,
-                                    s_to=0,
-                                    q_seq=query_seq,
-                                    s_seq=subject_seq,
-                                    midline=midline,
-                                    web_alignment=''))
+            idx += 1
 
-                    # Reset our arrays for the next hit.
-                    query_lines = list()
-                    mid_lines = list()
-                    subject_lines = list()
-        except StopIteration:
-            # Save the hit, if there is one.
-            if query_lines:
-                query_seq = ''.join(query_lines)
-                midline = ''.join(mid_lines)
-                subject_seq = ''.join(subject_lines)
-                hsps.append(Hsp(hit_accession='',
-                                q_from=0,
-                                q_to=0,
-                                s_from=0,
-                                s_to=0,
-                                q_seq=query_seq,
-                                s_seq=subject_seq,
-                                midline=midline,
-                                web_alignment=''))
+        if hit_sequence:
+            hseqs.append(hit_sequence)
 
-        return hsps
+        return hseqs
 
-    def get_preface_length(self, query_line):
-        """
-        Return the length of the preface of each pairwise line using
-        a query line. Example: "Query  433    GAAGTTCGC...." contains
-        5 characters for query, 3 characters for '433', and 6 spaces
-        before we get to the actual sequence. So, preface length is 11.
-        """
-        pattern = re.compile('[^ACGT-]+', flags=re.IGNORECASE)
-        match = re.match(pattern, query_line)
-        return len(match.group(0))
-
-    def get_seq_start_stop(self, query_line):
-        """
-        Return the start and stop of the sequence on each line, using the
-        query line for reference.
-        Example: "Query 1  GTGTAATAGC  10" would have start 9 and stop 19.
-        """
-        pattern = re.compile('[ACGT-]+', flags=re.IGNORECASE)
-        match = re.search(pattern, query_line)
-        return match.start(), match.end()
+    def tokenize(self, data):
+        """ Splits the data at every new line and whitespace and returns
+        the list of tokens. """
+        return data.split()

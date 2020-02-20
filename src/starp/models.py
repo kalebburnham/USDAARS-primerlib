@@ -542,54 +542,6 @@ class SnpParser:
 
         return nucleotide
 
-class Hsp:
-    """ Represents a High Scoring Pair. These are output from BLAST in
-    other formats. So, we need parsers to convert them to this format.
-    More attributes can be needed, but these are what are needed so
-    far. """
-
-    def __init__(self, hit_accession, q_from, q_to, s_from, s_to, q_seq, s_seq,
-                 midline, web_alignment):
-        self.hit_accession = hit_accession
-        self.q_from = q_from
-        self.q_to = q_to
-        self.s_from = s_from
-        self.s_to = s_to
-        self.q_seq = Sequence(q_seq)
-        self.s_seq = Sequence(s_seq)
-        self.midline = midline
-        self.web_alignment = web_alignment
-
-    def __eq__(self, other):
-        return (
-            self.__class__ == other.__class__ and
-            self.hit_accession == other.hit_accession and
-            self.q_from == other.q_from and
-            self.q_to == other.q_to and
-            self.s_from == other.s_from and
-            self.s_to == other.s_to and
-            self.q_seq == other.q_seq and
-            self.s_seq == other.s_seq and
-            self.midline == other.midline and
-            self.web_alignment == other.web_alignment
-        )
-
-    def __hash__(self):
-        return hash((self.hit_accession, self.q_from, self.q_to, self.s_from,
-                     self.s_to, self.q_seq, self.s_seq, self.midline,
-                     self.web_alignment))
-
-    def __str__(self):
-        output = []
-        output.append('<Hit-accession>' + self.hit_accession + '</Hit-accession>\n')
-        output.append('    <q_from>' + str(self.q_from) + '</q_from>\n')
-        output.append('    <q_to>' + str(self.q_to) + '</q_to>\n')
-        output.append('    <s_from>' + str(self.s_from) + '</s_from>\n')
-        output.append('    <s_to>' + str(self.s_to) + '</s_to>\n')
-        output.append('    <midline>' + self.midline + '</midline>\n')
-        output.append(re.sub('<br>', '\\n', '' + self.web_alignment))
-        return ''.join(output)
-
 if __name__ == '__main__':
     seq = Sequence('ATCGTACACATGGCAGT')
     print(seq.contig_complementary_score)
