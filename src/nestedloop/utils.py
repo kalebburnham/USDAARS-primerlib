@@ -268,7 +268,7 @@ def three_prime_atgc(primer):
     seq = list(str(primer.reverse()))
     return ''.join([m[n] for n in seq])
 
-def has_one_binding_site(primer, ref_sequence, hsps):
+def has_one_binding_site(primer, ref_sequence, nontarget_seqs):
     """ Searches for the primer sequence and its reverse complement
     through the reference sequence and all HSPs for any matches
     with <= 4 nucleotide differences. For each match, if the last
@@ -304,14 +304,14 @@ def has_one_binding_site(primer, ref_sequence, hsps):
     Raises:
         None.
     """
-    sequences = [ref_sequence] + hsps
+    sequences = [ref_sequence] + nontarget_seqs
     return len(binding_sites(sequences, primer)) == 1
 
 ###############
 # Stuff that needs to be cleaned up.
 
 def combine(f_primers, r_primers, num_to_return, pcr_min, pcr_max,
-            ref_sequence, hsps):
+            ref_sequence, nontarget_seqs):
     """ Yunming's algorithm.
     f_primers and r_primers should be sorted such that the best primers
     are in position 0, 1, 2, etc. Then we step through the lists 20
@@ -358,7 +358,7 @@ def combine(f_primers, r_primers, num_to_return, pcr_min, pcr_max,
         step += BLOCK_SIZE
 
         for primer in f_primers[step-BLOCK_SIZE:step] + r_primers[step-BLOCK_SIZE:step]:
-            if not has_one_binding_site(primer, ref_sequence, hsps):
+            if not has_one_binding_site(primer, ref_sequence, nontarget_seqs):
                 bad_primers.add(primer)
 
         # tuples is an iterator over tuples (f,r) with f in f_primers and r in r_primers.

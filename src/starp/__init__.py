@@ -27,7 +27,6 @@ class Starp:
     """
     Attributes:
         input_data: The user's input.
-        hsps:
         amas:
         reverse_primers:
         num_to_return: The number of reverse primers to return
@@ -53,8 +52,7 @@ class Starp:
         """
         self.input_data = validate_input_data(input_data)
         
-        hsps = validate_nontargets(nontargets)
-        self.nontargets = [hsp.s_seq for hsp in hsps]
+        self.nontargets = validate_nontargets(nontargets)
 
         self.amas = None
         self.upstream_pairs = list()

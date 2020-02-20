@@ -25,92 +25,11 @@ class XmlParser:
         """
         self.size = size
 
-    def parse(self, xml_data):
-        """ Return a list of strings of HSPs with web alignment that
-        looks like this:
-
-        GTAGTCATGCGTATGCGTATGCACATTAAGTCGTGTACTGACTG
-        ||||||||||||||||||||||||  |||||||||||||| |||
-        GTAGTCATGCGTATGCGTATGCACCGTAAGTCGTGTACTGACTG
-
-        GTAGTCATGCGTATGCGTATGCACATTAAGTCGTGTACTGACTG
-        ||||||||||||||||||||||||  |||||||||||||| |||
-        GTAGTCATGCGTATGCGTATGCACCGTAAGTCGTGTACTGACTG
-
-        Blast result should be in XML.
-        """
-        hsps = list()
-
-        # The Internet Explorer viewer displays XML with
-        # leading dashes to collapse sections.
-        # If these dashes are copied, it causes issues with
-        # the parsing. They are removed here.
-        xml_lines = xml_data.splitlines()
-        for line in xml_lines:
-            if line.startswith('-'):
-                line = line[1:]
-        xml_data = ''.join(xml_lines)
-
-        # Change the dashes in these examples to underscores,
-        # since dashes can mess up the parsing.
-        xml_data = re.sub(r'query-', 'query_', xml_data)
-        xml_data = re.sub(r'hit-', 'hit_', xml_data)
-
-        soup = BeautifulSoup(xml_data, 'lxml-xml')
-        for hit in soup.find_all('Hit'):
-
-            hit_accession = hit.Hit_accession.text
-            for hsp in hit.find_all('Hsp'):
-                if int(hsp.Hsp_hit_frame.text) == -1:
-                    # If the hit frame is -1, the query string is
-                    # reversed in the output
-                    q_from = int(hsp.Hsp_query_to.text)
-                    q_to = int(hsp.Hsp_query_from.text)
-                    s_from = int(hsp.Hsp_hit_to.text)
-                    s_to = int(hsp.Hsp_hit_from.text)
-
-                    q_seq = hsp.Hsp_qseq.text[::-1]
-                    s_seq = hsp.Hsp_hseq.text[::-1]
-                    midline = hsp.Hsp_midline.text[::-1]
-                else:
-                    q_from = int(hsp.Hsp_query_from.text)
-                    q_to = int(hsp.Hsp_query_to.text)
-                    s_from = int(hsp.Hsp_hit_from.text)
-                    s_to = int(hsp.Hsp_hit_to.text)
-
-                    q_seq = hsp.Hsp_qseq.text
-                    s_seq = hsp.Hsp_hseq.text
-                    midline = hsp.Hsp_midline.text
-
-                q = self._str2list(q_seq)
-                s = self._str2list(s_seq)
-                m = self._str2list(midline)
-
-                rows = list()
-                for i in range(len(q)):
-                    rows.append(q[i] + '\n' + m[i] + '\n' + s[i] + '\n\n')
-
-                web_alignment = ''.join(rows)
-
-                hsps.append(Hsp(hit_accession, q_from, q_to, s_from, s_to,
-                                q_seq, s_seq, midline, web_alignment))
-        if hsps:
-            if hsps[0].midline.count('|') == len(hsps[0].q_seq):
-                del hsps[0]
-
-        return hsps
-
-    def _str2list(self, s):
-        """ 
-        Break s into a list of lines where each line is at most
-        self.size characters long.
-        """
-        lines = list()
-        full_rows = int(len(s) / self.size)
-        for i in range(full_rows):
-            lines.append(s[i*self.size:(i+1)*self.size])
-        lines.append(s[full_rows*self.size:])
-        return lines
+    def parse(self, xml):
+        """ Returns a list of hit sequences from the xml data. """
+        soup = BeautifulSoup(xml, 'xml')
+        hseqs = soup.find_all('Hsp_hseq')
+        return [hseq.get_text() for hseq in hseqs]
 
 class PairwiseParser:
     """

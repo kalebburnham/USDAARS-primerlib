@@ -18,18 +18,16 @@ def validate_input_data(data: str) -> str:
     return data
 
 def validate_nontargets(nontargets: str):
-    """ Attempts to parse user input alignment information and
-    returns HSP objects. """
-    if not isinstance(nontargets, (str, type(None))):
-        raise TypeError('Non-targets must be a string or None.')
+    """ Return the 'hseqs' (hit sequences) from the nontarget xml data.
+    """
+    nontarget_seqs = []
 
     if nontargets:
-        if nontargets.startswith('<?xml version="1.0"?>'):
+        if nontargets.startswith('<?xml'):
             parser = XmlParser()
         else:
-            parser = PairwiseParser()
-        hsps = parser.parse(nontargets)
-    else:
-        hsps = list()
+            raise ValueError('Nontarget data not in XML format.')
+            # parser = PairwiseParser()
+        nontarget_seqs = parser.parse(nontargets)
 
-    return hsps
+    return nontarget_seqs

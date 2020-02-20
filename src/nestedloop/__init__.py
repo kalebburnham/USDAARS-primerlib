@@ -47,17 +47,14 @@ class NestedLoop:
             Should be written 5'->3' on PLUS strand.
         custom_reverse_primer - A string of any custom r primer. Else, empty string.
             Should be written 5'->3' on MINUS strand.
+        nontargets: Nontarget data in XML format.
 
     """
 
     def __init__(self, ref_sequence, tm, f_from, f_to, r_from, r_to,
                  pcr_min, pcr_max, num_to_return, custom_forward_primer=None,
                  custom_reverse_primer=None, nontargets=None):
-        """
-        Arguments:
-            See above for the class attributes.
-            nontargets: The BLAST alignment data.
-            ** Regions should be entered into the program as 1-indexed inclusive
+        """ ** Regions should be entered into the program as 1-indexed inclusive
         """
         self.ref_sequence = validate_reference_sequence(ref_sequence)
         self.tm_min = validate_temperature(tm[0])
@@ -67,13 +64,12 @@ class NestedLoop:
         self.r_from, self.r_to = validate_rspan(r_from, r_to, ref_sequence)
         self.pcr_min, self.pcr_max = validate_amplicon_size(pcr_min, pcr_max)
         self.num_to_return = validate_num_to_return(num_to_return)
-        self.hsps = validate_nontargets(nontargets) # High-Scoring Pairs
-        self.nontarget_seqs = [hsp.s_seq for hsp in self.hsps]
+        self.nontarget_seqs = validate_nontargets(nontargets)
         self.custom_forward_primer, self.custom_reverse_primer = (
                         validate_custom_primers(custom_forward_primer,
                                                 custom_reverse_primer,
                                                 self.ref_sequence,
-                                                self.hsps))
+                                                self.nontarget_seqs))
 
         self.f_primers = list()
         self.r_primers = list()

@@ -26,7 +26,7 @@ def validate_reference_sequence(ref_sequence: str):
 
     return Sequence(ref_sequence)
 
-def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
+def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
     """ Verify that the custom primers contain a valid alphabet. If
     both are provided, then return then as Primer objects. Else,
     verify that the one that is provided has exactly one binding site
@@ -64,8 +64,6 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
         crp = Primer(crp, 0, 0, -1)
         return cfp, crp
 
-    hsp_seqs = list(map(lambda hsp: hsp.s_seq, hsps))
-
     if cfp:
         sites = (binding_sites((ref_sequence,), cfp)
                  + binding_sites((ref_sequence,), cfp.rev_comp()))
@@ -76,9 +74,9 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
             raise NestedLoopError(('Forward primer has multiple binding sites '
                                    'in the reference sequence.'))
 
-        hsp_sites = (binding_sites(hsp_seqs, cfp)
-                     + binding_sites(hsp_seqs, cfp.rev_comp()))
-        if len(hsp_sites) > 0:
+        nontarget_sites = (binding_sites(nontarget_seqs, cfp)
+                     + binding_sites(nontarget_seqs, cfp.rev_comp()))
+        if len(nontarget_sites) > 0:
             raise NestedLoopError(('Forward primer has binding sites in the '
                                    'non-target regions.'))
         cfp = Primer(sequence=cfp, span=(sites[0].start(), sites[0].end()),
@@ -96,9 +94,9 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, hsps):
             raise NestedLoopError(('Reverse primer has multiple binding sites '
                                    'in the reference sequence.'))
 
-        hsp_sites = (binding_sites(hsp_seqs, crp)
-                     + binding_sites(hsp_seqs, crp.rev_comp()))
-        if len(hsp_sites) > 0:
+        nontarget_sites = (binding_sites(nontarget_seqs, crp)
+                     + binding_sites(nontarget_seqs, crp.rev_comp()))
+        if len(nontarget_sites) > 0:
             raise NestedLoopError(('Reverse primer has binding sites in the '
                                    'non-target regions.'))
         crp = Primer(sequence=crp, span=(sites[0].start(), sites[0].end()),
@@ -182,16 +180,16 @@ def validate_num_to_return(num_to_return: int):
     return num_to_return
 
 def validate_nontargets(nontargets: str):
-    if not isinstance(nontargets, (str, type(None))):
-        raise TypeError('Non-targets must be a string or None.')
+    """ Return the 'hseqs' (hit sequences) from the nontarget xml data.
+    """
+    nontarget_seqs = []
 
     if nontargets:
-        if nontargets.startswith('<?xml version="1.0"?>'):
+        if nontargets.startswith('<?xml'):
             parser = XmlParser()
         else:
-            parser = PairwiseParser()
-        hsps = parser.parse(nontargets)
-    else:
-        hsps = list()
+            raise ValueError('Nontarget data not in XML format.')
+            # parser = PairwiseParser()
+        nontarget_seqs = parser.parse(nontargets)
 
-    return hsps
+    return nontarget_seqs

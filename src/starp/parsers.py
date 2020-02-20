@@ -255,7 +255,13 @@ class XmlParser:
         """
         self.size = size
 
-    def parse(self, xml_data):
+    def parse(self, xml):
+        """ Returns a list of hit sequences from the xml data. """
+        soup = BeautifulSoup(xml, 'xml')
+        hseqs = soup.find_all('Hsp_hseq')
+        return [hseq.get_text() for hseq in hseqs]
+
+    def parse2(self, xml_data):
         """ Return a list of strings of HSPs with web alignment that
         looks like this:
 
