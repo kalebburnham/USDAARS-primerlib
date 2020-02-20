@@ -9,9 +9,6 @@ from bs4 import BeautifulSoup
 from .exceptions import StarpError
 from .models import Sequence, Snp
 
-ALPHABET = 'ACGT-/()'
-SNP_ALPHABET = 'ACGT-'
-
 def get_parser(data):
     """
     Given the user's input data, return the correct Parser.
@@ -57,20 +54,21 @@ def get_parser(data):
 class SnpSequence:
     """
     Defined as a single sequence of nucleotides with SNPs specified
-    by (a/b), a != b.
+    by [a/b], a != b.
 
     Accepted alphabet is {A, C, G, T, -, /, (, )}
 
     The accepted Grammar of this format is:
-    S -> nS | (a/b)S | empty_string
+    S -> nS | [a/b]S | empty_string
     where n, a, b in {A, C, G, T, -} and a != b.
 
-    Raises ValueError if the data contains invalid characters.
-
-    Raises SyntaxError if Snps contain the same character or the data
-    has incorrect grammar.
     """
+
     def __init__(self, data):
+        self.data = data
+
+        ALPHABET = 'ACGT-/[]'
+        SNP_ALPHABET = 'ACGT-'
         SNP_PATTERN = r'\[[' + SNP_ALPHABET + r']\/[' + SNP_ALPHABET + r']\]'
 
         """ Search for invalid characters. """
@@ -93,45 +91,71 @@ class SnpSequence:
         if len(matched_chars) < len(data):
             raise StarpError("Invalid syntax.")
 
-        # Convert data into TwoAlleles format
-        data_iter = iter(data)
-        allele1 = list()
-        allele2 = list()
+        self.allele1_aligned = ''
+        self.allele2_aligned = ''
+        self.allele1 = ''
+        self.allele2 = ''
 
-        while True:
-            try:
-                c = next(data_iter)
-            except StopIteration:
-                break
+        # Call snps() to set the four preceding attributes.
+        self.snps()
 
-            if c == '[':
-                allele1.append(next(data_iter))
-            elif c == '/':
-                allele2.append(next(data_iter))
-            elif c == ']':
-                # Ignore this.
-                pass
-            else:
-                # This character is common to both alleles.
-                allele1.append(c)
-                allele2.append(c)
-
-        self.allele1_aligned = Sequence(''.join(allele1))
-        self.allele2_aligned = Sequence(''.join(allele2))
-
-        self.allele1 = Sequence(''.join(allele1).replace('-', ''))
-        self.allele2 = Sequence(''.join(allele2).replace('-', ''))
-
-        self._twoAllelesFormat = TwoAlleles('>Allele1\n'
-                                            + str(self.allele1_aligned)
-                                            + '\n>Allele2\n'
-                                            + str(self.allele2_aligned))
+    def tokenize(self, data):
+        # Split string into list of chars.
+        return list(data)
 
     def snps(self):
         """
-        Returns the SNP objects from the data.
+        Parses and returns the SNP objects from the data.
         """
-        return self._twoAllelesFormat.snps()
+        data = self.tokenize(self.data)
+
+        self.allele1_aligned = []  # Will be joined into string later.
+        self.allele2_aligned = []
+        snps = []
+
+        idx = 0 # Current index on the SNP sequence.
+        pos = 0 # Position relative to the first allele
+        while idx < len(data):
+            c = data[idx]
+            if c in 'ACGTN':
+                self.allele1_aligned.append(c)
+                self.allele2_aligned.append(c)
+                pos += 1
+            elif c == '[':
+                self.allele1_aligned.append(data[idx+1])
+                self.allele2_aligned.append(data[idx+3])
+                if data[idx+1] == '-':
+                    # Insertion SNP
+                    descriptor = f'.{pos}ins{data[idx+3]}'
+                    snp = Snp(descriptor)
+                elif data[idx+3] == '-':
+                    # Deletion SNP
+                    descriptor = f'.{pos}del'
+                    snp = Snp(descriptor)
+                    snp.ref_nucleotide = data[idx+1]
+                    pos += 1
+                else:
+                    # Substitution SNP
+                    descriptor = f'.{pos}{data[idx+1]}>{data[idx+3]}'
+                    snp = Snp(descriptor)
+                    pos += 1
+
+                snps.append(snp)
+
+                # Place the idx on the ']' so the next increment reads the next token.
+                idx += 4
+            else:
+                raise StarpError(('Invalid characters in Snp Sequence. The accepted alphabet '
+                                  'is {A, C, G, T, -, /, [, ]}.'))
+
+            idx += 1
+
+        self.allele1_aligned = ''.join(self.allele1_aligned)
+        self.allele2_aligned = ''.join(self.allele2_aligned)
+        self.allele1 = self.allele1_aligned.replace('-', '')
+        self.allele2 = self.allele2_aligned.replace('-', '')
+
+        return snps
 
 class TwoAlleles:
     """
