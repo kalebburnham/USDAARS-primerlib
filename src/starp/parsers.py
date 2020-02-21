@@ -48,6 +48,10 @@ def get_parser(data):
     if len(lines) == 4 and lines[0].startswith('>') and lines[2].startswith('>'):
         return TwoAlleles(data)
 
+    # Test for Single Blast Sequence
+    if '|' in data:
+        return SingleBlastParser(data)
+
     # Format not recognized.
     raise StarpError("SNP Format Not Recognized")
 
@@ -265,6 +269,80 @@ class TwoAlleles:
             position += 1
 
         return snps
+
+class SingleBlastParser:
+    """ Parses a single BLAST alignment.
+    For example,
+
+    Query  2643       TATCTTCATTGTATTGATTTTATAACCGATTCCAAAATGTATTCTTAAAGGTACATCATC  2702
+                      |||| ||||||||||||| |  ||||  |||   ||||| |||| ||||||||| |||||
+    Sbjct  586624978  TATCCTCATTGTATTGATCTATTAACTAATTATTAAATGCATTCATAAAGGTACCTCATC  586625037
+
+    Query  2703       GTAATTGATGATATATGGGATGAAAAAGTGTGGGAATTCATTAA-T-TGCGCTTTCTCCA  2760
+                      ||||| |||||||||||| |||||||||  ||||| ||  |||| | ||| |||| ||||
+    Sbjct  586625038  GTAATCGATGATATATGGAATGAAAAAGCATGGGAGTTACTTAAGTGTGC-CTTT-TCCA  586625095
+
+    is valid but
+
+    Score =  569 bits (308),  Expect = 4e-159
+    Identities = 478/561 (85%), Gaps = 8/561 (1%)
+    Strand=Plus/Plus
+
+    Query  2643       TATCTTCATTGTATTGATTTTATAACCGATTCCAAAATGTATTCTTAAAGGTACATCATC  2702
+                      |||| ||||||||||||| |  ||||  |||   ||||| |||| ||||||||| |||||
+    Sbjct  586624978  TATCCTCATTGTATTGATCTATTAACTAATTATTAAATGCATTCATAAAGGTACCTCATC  586625037
+
+    Query  2703       GTAATTGATGATATATGGGATGAAAAAGTGTGGGAATTCATTAA-T-TGCGCTTTCTCCA  2760
+                      ||||| |||||||||||| |||||||||  ||||| ||  |||| | ||| |||| ||||
+    Sbjct  586625038  GTAATCGATGATATATGGAATGAAAAAGCATGGGAGTTACTTAAGTGTGC-CTTT-TCCA  586625095
+
+    is not.
+    """
+
+    def __init__(self, data):
+        self.data = data
+        self.allele1 = ''
+        self.allele2 = ''
+        self.allele1_aligned = ''
+        self.allele2_aligned = ''
+
+        # Call snps() to set the 4 latter attributes.
+        self.snps()
+
+    def snps(self):
+        tokens = self.tokenize(self.data)
+        query = ''
+        sbjct = ''
+
+        i = 0
+        while i < len(tokens):
+            if tokens[i].upper() == 'QUERY':
+                # Query subsequence is 2 tokens away
+                i += 2
+                query += tokens[i]
+            elif tokens[i].upper() == 'SBJCT':
+                # Sbjct subsequence is 2 tokens away
+                i += 2
+                sbjct += tokens[i]
+            i += 1
+        
+        # Put the query and sbjct sequences in the proper format and
+        # utilize the Two Alleles Parser.
+        two_alleles = TwoAlleles(f'>Query\n{query}\n>Sbjct\n{sbjct}')
+        self.allele1 = two_alleles.allele1
+        self.allele2 = two_alleles.allele2
+        self.allele1_aligned = two_alleles.allele1_aligned
+        self.allele2_aligned = two_alleles.allele2_aligned
+
+        return two_alleles.snps()
+
+    def tokenize(self, data):
+        """ Splits the data at every new line and whitespace and returns
+        the list of tokens. """
+        tokens = data.split()
+        for token in tokens:
+            token.replace('|', '')
+        return tokens
 
 # *********
 # Nontarget parsers

@@ -15,7 +15,6 @@ Query  61         CCG-GCGGACTATTCACCAAGTCGTCCATTAGGAGTAGAGAT  102
                   ||| ||||||||||||||||||||||||||||||||||||||
 Sbjct  528388683  CCGTGCGGACTATTCACCAAGTCGTCCATTAGGAGTAGAGAT  528388642"""
         parser = SingleBlastParser(sequence)
-        breakpoint()
         snps = parser.snps()
         expected = [Snp('.8del'), Snp('.22T>C'), Snp('.63insT')]
         expected[0].ref_nucleotide = 'C'
