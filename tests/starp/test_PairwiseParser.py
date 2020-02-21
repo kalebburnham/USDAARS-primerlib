@@ -1,4 +1,3 @@
-import json
 import unittest
 from starp.parsers import PairwiseParser
 

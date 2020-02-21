@@ -1,5 +1,5 @@
 import unittest
-from starp.parsers import PairwiseParser
+from nestedloop.parsers import PairwiseParser
 
 class TestPairwiseParser(unittest.TestCase):
 

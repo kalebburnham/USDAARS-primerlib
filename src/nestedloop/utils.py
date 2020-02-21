@@ -344,7 +344,7 @@ def combine(f_primers, r_primers, num_to_return, pcr_min, pcr_max,
     # combination we care about.
     if len(f_primers) == 1 and len(r_primers) == 1:
         if f_primers[0].custom and r_primers[0].custom:
-            pairs = Pair(f_primers[0], r_primers[0])
+            pairs = [Pair(f_primers[0], r_primers[0])]
             return pairs
 
     BLOCK_SIZE = 20

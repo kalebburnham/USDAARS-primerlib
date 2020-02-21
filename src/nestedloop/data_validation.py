@@ -60,8 +60,8 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
     if cfp and crp:
         # If both are provided, then we just calculated the PCR conditions
         # of these two. No reference sequence is required.
-        cfp = Primer(cfp, 0, 0, 1)
-        crp = Primer(crp, 0, 0, -1)
+        cfp = Primer(cfp, span=(0, 0), strand=1, custom=True)
+        crp = Primer(crp, span=(0, 0), strand=-1, custom=True)
         return cfp, crp
 
     if cfp:
