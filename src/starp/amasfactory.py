@@ -85,7 +85,7 @@ sub_index_two_snps = {
         'PSSC' : -2, 'PSST' : -4, 'PSWC' : -3, 'PSWT' : -2,
         'PWSC' : -2, 'PWST' : -3, 'PWWC' : -2, 'PWWT' : -3,
         'NSSC' : -2, 'NSST' : -3, 'NSWC' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
-        'NWGC' : ('S', -2, 'W', -2), 'NWGT' : ('S', -3, 'W', -3), 'NWWC' : -2, 'NWWT' : -3},
+        'NWSC' : ('S', -2, 'W', -2), 'NWST' : ('S', -3, 'W', -3), 'NWWC' : -2, 'NWWT' : -3},
     frozenset(('C', 'A')) : {
         'SSPC' : -3, 'SSPA' : -4, 'SSNC' : -3, 'SSNA' : -4,
         'SWPC' : -4, 'SWPA' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNA' : ('S', -4, 'W', -3),
