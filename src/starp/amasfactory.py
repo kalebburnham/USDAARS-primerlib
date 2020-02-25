@@ -3,7 +3,6 @@ License information goes here.
 """
 
 from .parsers import TwoAlleles
-from .exceptions import StarpError
 from .models import Sequence, Snp, AmasPrimer
 
 # These substitution matrices were created to deal with the
@@ -242,9 +241,6 @@ def generate_amas_for_substitution(allele1, allele2, position):
                 generate_amas_downstream(allele2, 2, position, 16, 26))
     downstream_pair = best_pair(pairs)
 
-    if not upstream_pair and not downstream_pair:
-        raise StarpError('Cannot find Starp primers at this location.')
-
     return upstream_pair, downstream_pair
 
 def generate_amas_for_indel(allele1, allele2, position):
@@ -343,9 +339,6 @@ def generate_amas_for_indel(allele1, allele2, position):
                              )
 
     downstream_pair = downstream_pairs[0] if downstream_pairs else []
-
-    if not upstream_pair and not downstream_pair:
-        raise StarpError('Cannot find Starp primers at this location.')
 
     return upstream_pair, downstream_pair
 

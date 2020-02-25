@@ -71,6 +71,12 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
 
     return (amas1, amas2)
 
+def add_rtails(rprimers):
+        """ Add tails to rprimers with low melting temperature. """
+        low, high = segregate(rprimers)
+        low = rtailed(low)
+        return low + high
+
 def aligned_position(pos, snps):
     """
     Returns an updated position after the dashes are added back into
@@ -283,8 +289,7 @@ def rgenerate(allele1, allele2, min_length, max_length):
 
     return candidates
 
-def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
-                             amas):
+def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets):
     """
     allele1: The aligned first allele.
     allele2: The aligned second allele.
@@ -309,10 +314,8 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets,
         if binding_sites(nontargets, primer.rev_comp(), stop=1):
             continue
 
-        # Check complementarity with AMAS primers.
-        if (len(primer) - complementary_score(primer.reverse(), amas[0]) > 5
-                and len(primer) - complementary_score(primer.reverse(), amas[1]) > 5):
-            candidates.append(primer)
+        # The primer's binding sites are acceptable.
+        candidates.append(primer)
 
     return candidates
 
@@ -348,13 +351,11 @@ def rtailed(rprimers: list) -> list:
             if len(primer) < 28
             and primer.tm <= 62]
 
-def rfilter(r_primers: list, amas: tuple, pcr_max: int, snp_position: str) -> list:
+def rfilter(r_primers: list) -> list:
     """
     Removes the R primers meeting any of the following conditions:
-    - overlap between primer and amas primer
     - Contains invalid characters. The only accepted alphabet
       is {A, C, G, T}.
-    - The amplicon size is > pcr_max
     - Has >= 10 contiguous G/C or >= 12 contiguous A/T
     - Has >= 8 As, Ts, Gs, or Cs
     - Has >= 6 di-nucleotide repeats
@@ -362,13 +363,6 @@ def rfilter(r_primers: list, amas: tuple, pcr_max: int, snp_position: str) -> li
 
     Args:
         primers: Reverse primers. Strand doesn't matter.
-        amas: The 2-tuple of AMAS primers.
-        snps: A list of SNP objects.
-        pcr_max: An integer representing the longest allowed
-            amplicon length.
-        snp_position: A string representing the position of the SNP to
-            consider between the AMAS pair. Should be either 'first' or
-            'last'.
 
     Returns:
         The primers that do not meet the above conditions.
@@ -383,25 +377,6 @@ def rfilter(r_primers: list, amas: tuple, pcr_max: int, snp_position: str) -> li
                       and primer.sequence.count('C') < 8
                       and not primer.has_dinucleotide_repeat(6)
                       and 0.20 <= primer.gc <= 0.80)]
-
-    # Filter by amplicon size depending if the amas primers are
-    # upstream or downstream.
-    if snp_position == 'last':
-        candidates = [primer for primer in candidates
-                      if (amas[0].end < primer.allele1_start
-                          and amas[1].end < primer.allele2_start
-                          and primer.allele1_start - amas[0].end <= pcr_max
-                          and primer.allele2_start - amas[1].end <= pcr_max)]
-    elif snp_position == 'first':
-        candidates = [primer for primer in candidates
-                      if (amas[0].start > primer.allele1_end
-                          and amas[1].start > primer.allele2_end
-                          and primer.allele1_end - amas[0].start <= pcr_max
-                          and primer.allele2_end - amas[1].start <= pcr_max)]
-
-    candidates = [primer for primer in candidates
-                  if (primer.contig_complementary_score < 10
-                      and len(primer) - primer.complementary_score > 5)]
 
     return candidates
 

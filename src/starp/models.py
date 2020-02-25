@@ -4,8 +4,9 @@ License information goes here.
 
 import re
 
-from .utils import (complementary_score, contig_complementary_score,
-                    segregate, rtailed)
+
+from .utils import (add_tails, complementary_score, contig_complementary_score,
+                    segregate, rtailed, rsorted)
 
 class Sequence:
     """
@@ -304,10 +305,7 @@ class AmasPrimer(Sequence):
         return len(self.sequence)
 
     def __str__(self):
-        if self.strand == 1:
-            return str(self.tail) + str(self.sequence)
-        else:
-            return str(self.sequence) + str(self.tail)
+        return str(self.tail) + str(self.sequence)
 
     def __repr__(self):
         return (f'AmasPrimer('
@@ -342,11 +340,7 @@ class AmasPrimer(Sequence):
     def html(self):
         """ One document shows the tail underlined and the substitutions
         highlighted. """
-        if self.strand == 1:
-            markup = f'<span>{str(self.tail)}<u>{str(self.sequence)}</u></span>'
-        else:
-            markup = f'<span><u>{str(self.sequence)}</u>{str(self.tail)}</span>'
-
+        markup = f'<span>{str(self.tail)}<u>{str(self.sequence)}</u></span>'
         return markup
 
 class AmasGroup:
@@ -408,7 +402,7 @@ class Snp:
 
     """
 
-    def __init__(self, descriptor):
+    def __init__(self, descriptor, aligned_pos=None):
         """ It is assumed the descriptor has zero-indexed positions.
         Currently this object should accept the Human Genome Variation
         Society SNP standard as described at
@@ -433,6 +427,7 @@ class Snp:
         self.type = parser.type()
         self.ref_nucleotide = parser.ref_nucleotide()
         self.new_nucleotide = parser.new_nucleotide()
+        self.aligned_pos = aligned_pos
 
     def __eq__(self, other):
         return (self.descriptor == other.descriptor
@@ -541,6 +536,101 @@ class SnpParser:
             nucleotide = ''
 
         return nucleotide
+
+class StarpGroup:
+
+    """
+    Attributes:
+        amas1: The AMAS primer on the first allele.
+        amas2: The AMAS primer on the second allele.
+        snp_position: The focus snp is either at the 'first' or 'last'
+            nucleotide in the amas primers. If the snp position is
+            'first', rprimers will be looked for before the amas
+            primers. If it is last, they will be searched for after the
+            amas primers.
+        rcandidates: All possible reverse primers. From this list, the
+            best primers are chosen to pair with the AMAS primers.
+            These primers should have already been sorted, filtered by
+            their, contents and filtered by their binding sites
+    """
+
+    def __init__(self, amas1, amas2, snp_position, rcandidates=[], snp=None, num_rprimers=3):
+        self.amas1 = amas1
+        self.amas2 = amas2
+        self.snp_position = snp_position
+        self.rcandidates = rcandidates
+        self.rprimers = []
+        self.snp = snp
+        self.num_rprimers = num_rprimers
+
+    def substitute_amas_bases(self):
+        """ Substitutes AMAS primer bases according to Long and
+        reassigns amas1 and amas2. 
+
+        Returns:
+            [Modified amas1, Modified amas2]
+        """
+        from .amasfactory import (substitute_bases,)
+        self.amas1, self.amas2 = substitute_bases([self.amas1, self.amas2], snp_position=self.snp_position)
+        return [self.amas1, self.amas2]
+    
+    def set_rprimers(self):
+        """ Sorts the rcandidates and chooses the best primers according
+        to the AMAS primers. 
+
+        Returns:
+            The best rprimers matching this pair of AMAS primers.
+
+        """
+        sorted_primers = rsorted(self.rcandidates)
+        for primer in sorted_primers:
+            if self.snp_position == 'first':
+                if primer.allele1_end > self.amas1.start:
+                    continue
+                if primer.allele2_end > self.amas2.start:
+                    continue
+            else:
+                if primer.allele1_start < self.amas1.end:
+                    continue
+                if primer.allele2_start < self.amas2.end:
+                    continue
+
+            # Check complementarity with AMAS primers.
+            if (len(primer) - complementary_score(primer.reverse(), self.amas1) > 5
+                    and len(primer) - complementary_score(primer.reverse(), self.amas2) > 5):
+                self.rprimers.append(primer)
+
+            if len(self.rprimers) >= self.num_rprimers:
+                break
+
+        return self.rprimers
+
+    def add_amas_tails(self):
+        """ Returns modified AMAS primer with tails according to
+        docs/STARP R primerdesign[4311].docx page 6.
+
+        To do this, we need to produce a Cartesian product between
+        the amas pair and rprimers, since different rprimers might
+        cause different tails to be put on AMAS primers.
+
+        Returns:
+            A two dimensional array of the form
+            [
+                [amas1, amas2, rprimer],
+                [amas1, amas2, rprimer],
+                ...,
+            ]
+
+        """
+        to_return = []
+        for rprimer in self.rprimers:
+            amplicon1 = abs(self.amas1.start - rprimer.allele1_end)
+            amplicon2 = abs(self.amas2.start - rprimer.allele2_end)
+            new_amas1, new_amas2 = add_tails(self.amas1, self.amas2, amplicon1, amplicon2, snp_position=self.snp_position)
+            to_return.append([new_amas1, new_amas2, rprimer])
+
+        return to_return
+
 
 if __name__ == '__main__':
     seq = Sequence('ATCGTACACATGGCAGT')

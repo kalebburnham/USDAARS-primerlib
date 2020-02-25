@@ -124,7 +124,6 @@ class SnpSequence:
             if c in 'ACGTN':
                 self.allele1_aligned.append(c)
                 self.allele2_aligned.append(c)
-                pos += 1
             elif c == '[':
                 self.allele1_aligned.append(data[idx+1])
                 self.allele2_aligned.append(data[idx+3])
@@ -137,12 +136,11 @@ class SnpSequence:
                     descriptor = f'.{pos}del'
                     snp = Snp(descriptor)
                     snp.ref_nucleotide = data[idx+1]
-                    pos += 1
                 else:
                     # Substitution SNP
                     descriptor = f'.{pos}{data[idx+1]}>{data[idx+3]}'
                     snp = Snp(descriptor)
-                    pos += 1
+                pos += 1
 
                 snps.append(snp)
 
@@ -250,7 +248,7 @@ class TwoAlleles:
                 pass
             elif pair[0] == '-':
                 # Insertion SNP
-                descriptor = '.' + str(position-num_insertions) + 'ins' + pair[1]
+                descriptor = '.' + str(position) + 'ins' + pair[1]
                 snps.append(Snp(descriptor))
                 num_insertions += 1
             elif pair[1] == '-':
