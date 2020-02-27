@@ -622,8 +622,8 @@ class StarpGroup:
                     continue
 
             # Check complementarity with AMAS primers.
-            if (len(primer) - complementary_score(primer.reverse(), self.amas1) > 5
-                    and len(primer) - complementary_score(primer.reverse(), self.amas2) > 5):
+            if (len(primer) - complementary_score(primer, self.amas1) > 5
+                    and len(primer) - complementary_score(primer, self.amas2) > 5):
                 self.rprimers.append(primer)
 
             if len(self.rprimers) >= self.num_rprimers:
