@@ -431,39 +431,39 @@ def rsorted(primers: list) -> list:
         The R primers to be sorted.
 
     Returns:
-        A sorted list of R primers.
+        A sorted list of R primers with the best primers at the front.
     """
 
-    # When a primer passes a condition, it should be evaluated to True
-    # for that condition. This prevents a reversal of the list afterwards.
+    # True values go towards the end of the list, so the best primers
+    # are kept in the front.
     return sorted(primers,
-                  key=lambda primer: (not primer.has_contig_gc_at(9, 11),  # 1
-                                      not primer.has_repeated_nucleotide(7),  # 2
-                                      not primer.has_dinucleotide_repeat(5),  # 3
-                                      0.25 <= primer.gc <= 0.75,  # 4
-                                      primer.contig_complementary_score < 8,  # 5a
-                                      len(primer) - primer.complementary_score > 6,  #5b
-                                      not primer.has_contig_gc_at(8, 9),  # 6
-                                      not primer.has_repeated_nucleotide(6),  # 7
-                                      not primer.has_dinucleotide_repeat(4),  # 8
-                                      0.30 <= primer.gc <= 0.70,  # 9
-                                      primer.contig_complementary_score < 7,  # 10a
-                                      len(primer) - primer.complementary_score > 8,  # 10b
-                                      not primer.has_contig_gc_at(6, 7),  # 11
-                                      not primer.has_repeated_nucleotide(5),  # 12
-                                      not primer.has_dinucleotide_repeat(3),  # 13
-                                      0.35 <= primer.gc <= 0.65,  # 14
-                                      primer.contig_complementary_score < 6,  # 15a
-                                      len(primer) - primer.complementary_score > 10,  # 15b
-                                      not primer.has_in_last(5, 6, 7),  # 16
-                                      not primer.has_in_last(3, 4, 4),  # 17
-                                      primer.contig_complementary_score < 5,  # 18a
-                                      len(primer) - primer.complementary_score > 12,  # 18b
-                                      not primer.has_contig_gc_at(4, 5),  # 19
-                                      not primer.has_repeated_nucleotide(4),  # 20
-                                      0.40 <= primer.gc <= 0.60,  # 21
-                                      primer.contig_complementary_score < 4,  # 22a
-                                      len(primer) - primer.complementary_score > 14,  # 22
+                  key=lambda primer: (primer.has_contig_gc_at(9, 11),  # 1
+                                      primer.has_repeated_nucleotide(7),  # 2
+                                      primer.has_dinucleotide_repeat(5),  # 3
+                                      primer.gc < 0.25 or primer.gc > 0.75,  # 4
+                                      primer.contig_complementary_score >= 8,  # 5a
+                                      len(primer) - primer.complementary_score <= 6,  #5b
+                                      primer.has_contig_gc_at(8, 9),  # 6
+                                      primer.has_repeated_nucleotide(6),  # 7
+                                      primer.has_dinucleotide_repeat(4),  # 8
+                                      primer.gc < 0.30 or primer.gc > 0.70,  # 9
+                                      primer.contig_complementary_score >= 7,  # 10a
+                                      len(primer) - primer.complementary_score <= 8,  # 10b
+                                      primer.has_contig_gc_at(6, 7),  # 11
+                                      primer.has_repeated_nucleotide(5),  # 12
+                                      primer.has_dinucleotide_repeat(3),  # 13
+                                      primer.gc < 0.35 or primer.gc > 0.65,  # 14
+                                      primer.contig_complementary_score >= 6,  # 15a
+                                      len(primer) - primer.complementary_score <= 10,  # 15b
+                                      primer.has_in_last(5, 6, 7),  # 16
+                                      primer.has_in_last(3, 4, 4),  # 17
+                                      primer.contig_complementary_score >= 5,  # 18a
+                                      len(primer) - primer.complementary_score <= 12,  # 18b
+                                      primer.has_contig_gc_at(4, 5),  # 19
+                                      primer.has_repeated_nucleotide(4),  # 20
+                                      primer.gc < 0.40 or primer.gc > 0.60, # 21
+                                      primer.contig_complementary_score >= 4,  # 22a
+                                      len(primer) - primer.complementary_score <= 14,  # 22
                                       abs(len(primer)-22)))
 
 def hamming(s1, s2):

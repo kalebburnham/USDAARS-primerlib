@@ -60,7 +60,7 @@ class SnpSequence:
     Defined as a single sequence of nucleotides with SNPs specified
     by [a/b], a != b.
 
-    Accepted alphabet is {A, C, G, T, -, /, (, )}
+    Accepted alphabet is {A, C, G, T, -, /, [, ]}
 
     The accepted Grammar of this format is:
     S -> nS | [a/b]S | empty_string

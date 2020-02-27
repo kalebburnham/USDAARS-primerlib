@@ -126,6 +126,11 @@ class Starp:
         # Add tails to low melting temperature primers.
         rcandidates = add_rtails(rcandidates)
 
+        # Need another filter here.
+        
+
+        rcandidates = rsorted(rcandidates)
+
         for group in self.starp_groups:
             group.rcandidates = rcandidates
             group.substitute_amas_bases()

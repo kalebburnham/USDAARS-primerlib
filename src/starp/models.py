@@ -150,7 +150,7 @@ class Sequence:
         """ Return True if primer has num_gc contiguous G/C or num_at
         contiguous A/T. """
         pattern = re.compile('[GC]{' + str(num_gc) + '}|[AT]{' + str(num_at) + '}')
-        return re.search(pattern, self.sequence)
+        return bool(re.search(pattern, self.sequence))
 
     def has_in_last(self, num_gc, num_at, p):
         """
@@ -194,7 +194,7 @@ class Sequence:
         num_at = str(num_at)
         pattern = re.compile('G{' + num_gc + '}|C{' + num_gc + '}|A{'
                              + num_at + '}|T{' + num_at + '}')
-        return re.search(pattern, self.sequence)
+        return bool(re.search(pattern, self.sequence))
 
     def has_dinucleotide_repeat(self, n):
         """
@@ -212,7 +212,7 @@ class Sequence:
                              +'}|(AG){'+ n +'}|(GA){'+ n +'}|(TG){'+ n +'}|(GT){'+ n
                              +'}|(TC){'+ n +'}|(CT){'+ n +'}|(GC){'+ n +'}|(CG){'
                              + n + '}')
-        return re.search(pattern, self.sequence)
+        return bool(re.search(pattern, self.sequence))
 
     @staticmethod
     def hamming(s1, s2):
