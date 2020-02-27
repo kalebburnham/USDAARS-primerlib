@@ -380,6 +380,23 @@ def rfilter(r_primers: list) -> list:
 
     return candidates
 
+def rfilter_tailed_primers(rprimers: list) -> list:
+    """
+    Removes the R primers meeting any of the following conditions:
+    - Contains 28+ nucleotides bases
+    - Has melting temperature > 62 degrees Celsius.
+    - Contains 10+ contiguous self-complementary nucleotides.
+    - Primer length - self complementary <= 4
+    """
+
+    candidates = [primer for primer in rprimers
+                  if (len(primer) < 28
+                      and primer.tm <= 62
+                      and primer.contig_complementary_score < 10
+                      and len(primer) - primer.complementary_score > 5)]
+
+    return candidates
+
 def segregate(primers: list):
     """
     Splits the primers into two groups. Group 1 contains primers

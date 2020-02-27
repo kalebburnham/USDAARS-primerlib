@@ -10,7 +10,8 @@ import time
 
 from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
-from .utils import (add_rtails, rgenerate, rfilter, rsorted, rfilter_by_binding_sites,
+from .utils import (add_rtails, rgenerate, rfilter, rfilter_tailed_primers,
+                    rsorted, rfilter_by_binding_sites,
                     rtailed, add_tails, aligned_position)
 from .models import Sequence, Snp, AmasGroup, StarpGroup
 from .parsers import get_parser
@@ -126,8 +127,9 @@ class Starp:
         # Add tails to low melting temperature primers.
         rcandidates = add_rtails(rcandidates)
 
-        # Need another filter here.
-        
+        # Remove primers with undesirable characteristics after
+        # modifications from add_rtails.
+        rcandidates = rfilter_tailed_primers(rcandidates)
 
         rcandidates = rsorted(rcandidates)
 
