@@ -142,7 +142,7 @@ def best_pair(pairs):
     """
     Chooses the best AMAS primer pair.
     The best pair is the one with an average melting temperature
-    closest to 58 C, with both primer's Tm between 54 and 58 C.
+    closest to 58 C, with both primer's Tm between 53 and 60 C.
 
     If no pairs have this quality, then return None.
 
@@ -167,8 +167,8 @@ def best_pair(pairs):
     # Keep the pairs with both melting temperatures between 54 and 58 C.
     good_pairs = {pair : tm_dict[pair]
                   for pair in tm_dict
-                  if (54 <= tm_dict[pair][0] <= 58
-                      and 54 <= tm_dict[pair][1] <= 58)}
+                  if (53 <= tm_dict[pair][0] <= 60
+                      and 53 <= tm_dict[pair][1] <= 60)}
 
     # Compute the average melting temperatures between
     average_tms = {pair : (good_pairs[pair][0]+good_pairs[pair][1])/2
