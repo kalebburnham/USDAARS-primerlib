@@ -472,8 +472,8 @@ def rsorted(primers: list) -> list:
                                       primer.gc < 0.35 or primer.gc > 0.65,  # 14
                                       primer.contig_complementary_score >= 6,  # 15a
                                       len(primer) - primer.complementary_score <= 10,  # 15b
-                                      primer.has_in_last(5, 6, 7),  # 16
-                                      primer.has_in_last(3, 4, 4),  # 17
+                                      primer.has_in_first(5, 6, 7),  # 16
+                                      primer.has_in_first(3, 4, 4),  # 17
                                       primer.contig_complementary_score >= 5,  # 18a
                                       len(primer) - primer.complementary_score <= 12,  # 18b
                                       primer.has_contig_gc_at(4, 5),  # 19

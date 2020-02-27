@@ -152,6 +152,32 @@ class Sequence:
         pattern = re.compile('[GC]{' + str(num_gc) + '}|[AT]{' + str(num_at) + '}')
         return bool(re.search(pattern, self.sequence))
 
+    def has_in_first(self, num_gc, num_at, p):
+        """
+        Args:
+            num_gc: The number of G/C nucleotides to search for.
+            num_at: The number of A/T nucleotides to search for.
+            p: The first p nucleotides are searched.
+
+        Returns:
+            True if this sequence has gc G/C or at A/T in the first p
+            bases.
+
+        Raises:
+            IndexError: if p is greater than the sequence length.
+        """
+        if p > len(self.sequence):
+            raise IndexError("Argument p is greater than the sequence length.")
+
+        seq = self.sequence[:p]
+
+        A = seq.count('A')
+        T = seq.count('T')
+        C = seq.count('C')
+        G = seq.count('G')
+
+        return G+C >= num_gc or A+T >= num_at
+
     def has_in_last(self, num_gc, num_at, p):
         """
         Args:
