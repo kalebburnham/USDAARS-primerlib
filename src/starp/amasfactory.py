@@ -183,14 +183,14 @@ def best_pair(pairs):
 
     return best_pair
 
-def substitute(allele, idx):
+def substitute(seq, idx):
     """
     Substitutes the given index of the allele according to the
     mapping nucleotide_sub. This is necessary because strings
     and Sequence objects are immutable.
 
     Args:
-        allele: the Sequence object to modify
+        seq: the Sequence object to modify
         idx: an integer or tuple of the indices to change.
 
     Returns:
@@ -199,16 +199,15 @@ def substitute(allele, idx):
     if isinstance(idx, int):
         idx = (idx,)  # Change int to 1-tuple.
 
-    allele = str(allele)
+    seq = str(seq)
 
     nucleotide_sub = {'A' : 'C', 'T' : 'C', 'G' : 'A', 'C' : 'T'}
-    allele = list(allele)
+    seq = list(seq)
 
     for i in idx:
-        allele[i] = nucleotide_sub[allele[i]]
+        seq[i] = nucleotide_sub[seq[i]]
 
-    return Sequence(''.join(allele))
-
+    return Sequence(''.join(seq))
 
 def seq_to_ambiguity_code(sequence: str):
     """ Converts 'C' and 'G' to 'S', and 'A'/'T' to 'W' as defined by
@@ -403,7 +402,6 @@ def substitute_bases(pair, snp_position='last'):
     elif snp_position == 'last':
         snp = TwoAlleles(f'>\n{pair[0][-1]}\n>\n{pair[1][-1]}').snps()[0]
         local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
-
     if len(local_snps) == 0:
         new_amas1, new_amas2 = substitute_with_one_snp(pair, snp_position)
         pair[0].sequence = new_amas1

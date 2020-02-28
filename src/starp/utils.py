@@ -14,7 +14,8 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
     """
     Add tails to AMAS primers according to 'STARP R primer design[4311].docx'.
     Note that downstream primers must be reverse complemented before
-    adding the unmodified tail to the 5' end.
+    adding the unmodified tail to the 5' end. For reference, see
+    'STARP R primer design[4311].docx' page 6.
 
     Args:
         amas1: An AmasPrimer object.
@@ -75,22 +76,6 @@ def add_rtails(rprimers):
         low, high = segregate(rprimers)
         low = rtailed(low)
         return low + high
-
-def aligned_position(pos, snps):
-    """
-    Returns an updated position after the dashes are added back into
-    the sequence.
-    Snp positions are given relative to allele1 without any dashes,
-    Example:
-        With snp = '.2insA', allele1 = 'ATGCACTG', and pos=4, the
-        aligned sequence is 'AT-GCACTG' and the new position is 5
-        because we added a single dash before it.
-    """
-
-    insertion_count = len([snp for snp in snps
-                           if snp.position < pos and snp.type == 'deletion'])
-
-    return pos + insertion_count
 
 def cut(tail, primer):
     """
