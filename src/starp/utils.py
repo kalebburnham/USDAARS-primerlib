@@ -72,10 +72,10 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
     return (amas1, amas2)
 
 def add_rtails(rprimers):
-        """ Add tails to rprimers with low melting temperature. """
-        low, high = segregate(rprimers)
-        low = rtailed(low)
-        return low + high
+    """ Add tails to rprimers with low melting temperature. """
+    low, high = segregate(rprimers)
+    low = rtailed(low)
+    return low + high
 
 def cut(tail, primer):
     """

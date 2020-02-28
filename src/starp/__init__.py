@@ -12,7 +12,7 @@ from .amasfactory import (generate_amas_for_substitution,
                           generate_amas_for_indel, substitute_bases)
 from .utils import (add_rtails, rgenerate, rfilter, rfilter_tailed_primers,
                     rsorted, rfilter_by_binding_sites,
-                    rtailed, add_tails, aligned_position)
+                    rtailed, add_tails)
 from .models import Sequence, Snp, AmasGroup, StarpGroup
 from .parsers import get_parser
 from .data_validation import validate_input_data, validate_nontargets
