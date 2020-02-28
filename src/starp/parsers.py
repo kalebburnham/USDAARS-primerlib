@@ -140,7 +140,7 @@ class SnpSequence:
                     # Substitution SNP
                     descriptor = f'.{pos}{data[idx+1]}>{data[idx+3]}'
                     snp = Snp(descriptor)
-                pos += 1
+                
 
                 snps.append(snp)
 
@@ -151,6 +151,7 @@ class SnpSequence:
                                   'is {A, C, G, T, -, /, [, ]}.'))
 
             idx += 1
+            pos += 1
 
         self.allele1_aligned = ''.join(self.allele1_aligned)
         self.allele2_aligned = ''.join(self.allele2_aligned)

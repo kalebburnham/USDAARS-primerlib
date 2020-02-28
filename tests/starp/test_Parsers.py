@@ -31,7 +31,7 @@ class TestSnpSequence(unittest.TestCase):
         self.assertEqual(snps, expected)
 
     def test_Two_Substitutions(self):
-        # Substitution at position 6 and 7.
+        # Substitution at position 5 and 6.
         data = "TGACA[C/G][G/A]TACGT"
         parser = SnpSequence(data)
         snps = parser.snps()
@@ -49,20 +49,19 @@ class TestSnpSequence(unittest.TestCase):
     def test_Two_Insertions(self):
         # Allele1: TGACACGTACGT
         # Insertion of 'A' at position 1 and
-        # Insertion of 'G' at position 5. DO NOT COUNT THE FIRST SNP 
-        # AS TAKING A POSITION.
+        # Insertion of 'G' at position 6.
         data = "T[-/A]GACA[-/G]CGTACGT"
         parser = SnpSequence(data)
         snps = parser.snps()
-        expected = [Snp('.1insA'), Snp('.5insG')]
+        expected = [Snp('.1insA'), Snp('.6insG')]
         self.assertEqual(snps, expected)
 
     def test_Two_Insertions_Consecutive(self):
-        # Two insertions at position 2.
+        # Two insertions at position 1 and 2.
         data = "T[-/A][-/G]GACACGTACGT"
         parser = SnpSequence(data)
         snps = parser.snps()
-        expected = [Snp('.1insA'), Snp('.1insG')]
+        expected = [Snp('.1insA'), Snp('.2insG')]
         self.assertEqual(snps, expected)
 
     def test_Two_Deletions(self):
@@ -118,11 +117,11 @@ class TestTwoAlleles(unittest.TestCase):
 
     def test_Two_Insertions(self):
         # Allele1 = TGACACGTACGT
-        # Insertion of 'A' at position 1 and 'G' at position 7
+        # Insertion of 'A' at position 1 and 'G' at position 8.
         data = ">Allele1\nT-GACACG-TACGT\n>Allele2\nTAGACACGGTACGT"
         parser = TwoAlleles(data)
         snps = parser.snps()
-        expected = [Snp('.1insA'), Snp('.7insG')]
+        expected = [Snp('.1insA'), Snp('.8insG')]
         self.assertEqual(snps, expected)
 
     def test_One_Deletion(self):
