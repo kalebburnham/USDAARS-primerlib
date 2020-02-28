@@ -12,6 +12,10 @@ from .exceptions import StarpError
 
 def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
     """
+    Add tails to AMAS primers according to 'STARP R primer design[4311].docx'.
+    Note that downstream primers must be reverse complemented before
+    adding the unmodified tail to the 5' end.
+
     Args:
         amas1: An AmasPrimer object.
         amas2: An AmasPrimer object.
@@ -24,6 +28,12 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
 
     tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
     tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
+
+    if snp_position == 'first':
+        if amas1.strand == 1:
+            amas1 = amas1.rev_comp()
+        if amas2.strand == 1:
+            amas2 = amas2.rev_comp()
 
     if amplicon1 - amplicon2 >= 8:
         amas1.tail = cut(tail1, amas1)
@@ -42,25 +52,14 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
             frozenset({'T', 'A'}): {'T': 1, 'A': 2}
         }
 
-        if snp_position == 'first':
-            nucleotides = frozenset({str(amas1[0]), str(amas2[0])})
+        nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
 
-            if assigned_tail[nucleotides][str(amas1[0])] == 1:
-                amas1.tail = cut(tail1, amas1)
-                amas2.tail = cut(tail2, amas2)
-            else:
-                amas1.tail = cut(tail2, amas1)
-                amas2.tail = cut(tail1, amas2)
-
-        elif snp_position == 'last':
-            nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
-
-            if assigned_tail[nucleotides][str(amas1[-1])] == 1:
-                amas1.tail = cut(tail1, amas1)
-                amas2.tail = cut(tail2, amas2)
-            else:
-                amas1.tail = cut(tail2, amas1)
-                amas2.tail = cut(tail1, amas2)
+        if assigned_tail[nucleotides][str(amas1[-1])] == 1:
+            amas1.tail = cut(tail1, amas1)
+            amas2.tail = cut(tail2, amas2)
+        else:
+            amas1.tail = cut(tail2, amas1)
+            amas2.tail = cut(tail1, amas2)
 
     elif amplicon1 - amplicon2 >= -7:
         amas1.tail = cut(tail1, amas1)

@@ -357,10 +357,11 @@ class AmasPrimer(Sequence):
         return Sequence(self.sequence).tm
 
     def rev_comp(self):
+        """ Return a new AMAS primer with only the sequence changed.
+        Tails are not reverse complemented."""
         seq = Sequence(self.sequence).rev_comp()
-        tail = self.tail.rev_comp()
         primer = AmasPrimer(seq, self.allele_num, self.span, strand=self.strand*-1)
-        primer.tail = tail
+        primer.tail = self.tail
         return primer
     
     def html(self):
