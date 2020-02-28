@@ -26,11 +26,11 @@ def add_tails(amas1, amas2, amplicon1, amplicon2, snp_position):
     tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
 
     if amplicon1 - amplicon2 >= 8:
-        amas1.tail = tail1
-        amas2.tail = tail2
+        amas1.tail = cut(tail1, amas1)
+        amas2.tail = cut(tail2, amas2)
     elif amplicon1 - amplicon2 >= 1:
-        amas1.tail = tail2
-        amas2.tail = tail1
+        amas1.tail = cut(tail2, amas1)
+        amas2.tail = cut(tail1, amas2)
     elif amplicon1 - amplicon2 == 0:
         # This branch comes from Table 3 in the STARP paper.
         assigned_tail = {
