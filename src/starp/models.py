@@ -90,7 +90,7 @@ class Sequence:
         """Returns an estimated melting temperature of this sequence.
         Note: this is only accurate for sequences of ~16-24 characters.
 
-        TODO: Include the sources for these values.
+        Source: docs/Nearest-Neighbor Thermodynamic Parameters.pdf
         """
         if re.search('[^ACGT]', self.sequence) is not None:
             return float('nan') # Cannot calculate tm with bad characters.
@@ -98,7 +98,7 @@ class Sequence:
         enthalpy = {'AA': -7.9, 'AT': -7.2, 'AC': -8.4, 'AG': -7.8,
                     'TA': -7.2, 'TT': -7.9, 'TC': -8.2, 'TG': -8.5,
                     'CA': -8.5, 'CT': -7.8, 'CC': -8.0, 'CG': -10.6,
-                    'GA': -7.8, 'GT': -8.4, 'GC': -9.8, 'GG': -8.0}
+                    'GA': -8.2, 'GT': -8.4, 'GC': -9.8, 'GG': -8.0}
         entropy = {'AA': -22.2, 'AT': -20.4, 'AC': -22.4, 'AG': -21,
                    'TA': -21.3, 'TT': -22.2, 'TC': -22.2, 'TG': -22.7,
                    'CA': -22.7, 'CT': -21.0, 'CC': -19.9, 'CG': -27.2,
@@ -109,7 +109,9 @@ class Sequence:
                      for i in range(len(self.sequence)-1)))
         s = sum(list(entropy[self.sequence[i:i+2]]
                      for i in range(len(self.sequence)-1)))
-        tm = 1000*((h+2.4)/(s-0.7*(len(self.sequence)+2)-32.1))-273.15
+
+        N = len(self.sequence) + 2
+        tm = 1000*(h+2.4)/(s-0.7*N-32.1)-273.15
         return tm
 
     @property
