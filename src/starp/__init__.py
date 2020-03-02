@@ -133,11 +133,12 @@ class Starp:
 
         rcandidates = rsorted(rcandidates)
 
+        starp_triples = []
+
         for group in self.starp_groups:
             group.rcandidates = rcandidates
             group.substitute_amas_bases()
             group.set_rprimers()
-            print(group.add_amas_tails())
             if group.snp_position == 'first':
                 # The AMAS primers need to be rev comped to be placed
                 # on the -1 strand.
@@ -147,8 +148,10 @@ class Starp:
                 # The reverse primers need to be rev comped.
                 group.rprimers = [primer.rev_comp() for primer in group.rprimers]
 
-        self.starp_groups = [group for group in self.starp_groups if group.amas1 and group.amas2 and group.rprimers]
+            starp_triples += group.add_amas_tails()
 
+        self.starp_groups = [group for group in self.starp_groups if group.amas1 and group.amas2 and group.rprimers]
+        self.starp_triples = starp_triples
         return self.starp_groups
 
     def html(self, width=60):

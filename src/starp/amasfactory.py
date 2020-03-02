@@ -402,6 +402,7 @@ def substitute_bases(pair, snp_position='last'):
     elif snp_position == 'last':
         snp = TwoAlleles(f'>\n{pair[0][-1]}\n>\n{pair[1][-1]}').snps()[0]
         local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
+
     if len(local_snps) == 0:
         new_amas1, new_amas2 = substitute_with_one_snp(pair, snp_position)
         pair[0].sequence = new_amas1
@@ -434,7 +435,6 @@ def substitute_with_one_snp(pair, snp_position='last'):
         A 2-tuple of the pair with appropriate bases substituted
             of type Sequence.
     """
-
     pair = (str(pair[0]), str(pair[1]))
 
     if snp_position == 'first':
