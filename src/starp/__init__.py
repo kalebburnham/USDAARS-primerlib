@@ -75,6 +75,7 @@ class Starp:
         self.allele2_aligned = Sequence(snp_parser.allele2_aligned)
 
         self.starp_groups = []
+        self.triples = []
 
         # Generate a Starp Group for each SNP.
         self.prototype()
@@ -151,7 +152,7 @@ class Starp:
             starp_triples += group.add_amas_tails()
 
         self.starp_groups = [group for group in self.starp_groups if group.amas1 and group.amas2 and group.rprimers]
-        self.starp_triples = starp_triples
+        self.triples = starp_triples
         return self.starp_groups
 
     def html(self, width=60):

@@ -656,13 +656,17 @@ class StarpGroup:
             amplicon1 = abs(self.amas1.start - rprimer.allele1_end)
             amplicon2 = abs(self.amas2.start - rprimer.allele2_end)
             new_amas1, new_amas2 = add_tails(self.amas1, self.amas2, amplicon1, amplicon2, snp_position=self.snp_position)
-            to_return.append([new_amas1, new_amas2, rprimer])
+            to_return.append(StarpTriple(self.snp, self.amas1, self.amas2, rprimer))
 
         return to_return
 
+class StarpTriple:
+    """ A collection of usable primers in PCR. Includes both AMAS
+    primers, their common reverse primer, and the SNP they were built
+    around. """
 
-if __name__ == '__main__':
-    seq = Sequence('ATCGTACACATGGCAGT')
-    print(seq.contig_complementary_score)
-    print(seq.complementary_score)
-    print(len(seq))
+    def __init__(self, snp, amas1, amas2, rprimer):
+        self.snp = snp
+        self.amas1 = amas1
+        self.amas2 = amas2
+        self.rprimer = rprimer
