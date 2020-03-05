@@ -9,7 +9,7 @@ class Additive:
     A class that automatically calculates PCR conditions given a
     target sequence upon initialization.
 
-    Refer to docs/NL-PCR_reaction_conditions.docx
+    Refer to docs/NL-PCR reaction conditions[6026].docx
 
     Attributes:
         sequence: The user-defined target sequence.
@@ -45,9 +45,7 @@ class Additive:
             additive = "5.5-8.0"
         elif self.max_gc >= 0.80:
             additive = "3.5-6.0"
-        elif self.max_gc >= 0.75:
-            additive = "3.0-5.5"
-        elif self.max_gc >= 0:
+        else:
             additive = "2.5-5.0"
 
         return additive
@@ -79,31 +77,15 @@ class Additive:
         temperatures = None
 
         if self.max_gc >= 0.95:
-            if self.min_gc <= 0.10:
-                temperatures = "1) 72/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 58/30\"\n"
-            elif self.min_gc <= 0.30:
-                temperatures = "1) 72/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 59/30\"\n"
-            else:
-                temperatures = "1) 72/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 60/30\"\n"
+            temperatures = "1) 72/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 60/30\"\n"
         elif self.max_gc >= 0.90:
-            if self.min_gc <= 0.10:
-                temperatures = "1) 71/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 59/30\"\n"
-            elif self.min_gc <= 0.30:
-                temperatures = "1) 71/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 60/30\"\n"
-            else:
-                temperatures = "1) 71/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 61/30\"\n"
+            temperatures = "1) 71/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 61/30\"\n"
         elif self.max_gc >= 0.85:
-            if self.min_gc <= 0.10:
-                temperatures = "1) 70/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 60/30\"\n"
-            elif self.min_gc <= 0.30:
-                temperatures = "1) 70/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n6) 61/30\"\n"
-            else:
-                temperatures = "1) 70/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n"
+            temperatures = "1) 70/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n"
         elif self.max_gc >= 0.80:
-            temperatures = "1) 69/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 62/30\"\n"
+            temperatures = "1) 69/30\"\n2) 68/30\"\n3) 66/30\"\n4) 64/30\"\n5) 63/30\"\n"
         else:
-            temperatures = "1) 68/30\"\n2) 66/30\"\n3) 64/30\"\n4) 62/30\"\n"
-            #temperatures = "68/30\"; 66/30\"; 64/30\"; 62/30\";"
+            temperatures = "1) 68/30\"\n2) 67/30\"\n3) 66/30\"\n4) 65/30\"\n5)64/30\"\n"
 
         return temperatures
 
