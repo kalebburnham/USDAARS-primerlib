@@ -296,10 +296,10 @@ def generate_amas_for_indel(allele1, allele2, position):
             primer sequence is downstream from the SNP.
     """
 
-    # Create upstream AMAS primers by moving the SNP back 17 positions
+    # Create upstream AMAS primers by moving the SNP back 15 positions
     # and creating downstream primers from that new position.
-    pairs = zip(generate_amas_downstream(allele1, 1, position-17, 18, 26),
-                generate_amas_downstream(allele2, 2, position-17, 18, 26))
+    pairs = zip(generate_amas_downstream(allele1, 1, position-15, 16, 26),
+                generate_amas_downstream(allele2, 2, position-15, 16, 26))
 
     # Remove pairs with the same nucleotide on the 3' end.
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
@@ -307,20 +307,24 @@ def generate_amas_for_indel(allele1, allele2, position):
     # Order the pairs based on
     # 1) The number of nucleotide differences in the last 4 bases.
     #    More differences is preferable.
-    # 2) Length of the sequences in each pair. Longer is preferable.
+    # 2) Length of the sequences in each pair. Shorter is preferable.
     upstream_pairs = sorted(pairs,
                             key=lambda pair: (
                                 Sequence.hamming(pair[0][-4:], pair[1][-4:]),
-                                len(pair[0])),
-                            reverse=True
-                            )
+                                1 / len(pair[0])),
+                            reverse=True)
 
-    upstream_pair = upstream_pairs[0] if upstream_pairs else []
+    # Choose the first pair with melting temperature between 52 and 60 degrees.
+    upstream_pair = []
+    for pair in upstream_pairs:
+        if 52 <= pair[0].tm <= 60 and 52 <= pair[1].tm <= 60:
+            upstream_pair = pair
+            break
 
-    # Create downstream AMAS primers by moving the SNP forward 17
+    # Create downstream AMAS primers by moving the SNP forward 15
     # positions and creating upstream primers from that position.
-    pairs = zip(generate_amas_upstream(allele1, 1, position+17, 18, 26),
-                generate_amas_upstream(allele2, 2, position+17, 18, 26))
+    pairs = zip(generate_amas_upstream(allele1, 1, position+15, 16, 26),
+                generate_amas_upstream(allele2, 2, position+15, 16, 26))
 
     # Remove pairs with the same nucleotide on the 5' end.
     pairs = filter(lambda pair: pair[0][0] != pair[1][0], pairs)
@@ -328,16 +332,20 @@ def generate_amas_for_indel(allele1, allele2, position):
     # Order the pairs based on
     # 1) The number of nucleotide differences in the first 4 bases.
     #    More differences is preferable.
-    # 2) Length of the sequences in each pair. Longer is preferable.
-    downstream_pairs = sorted(
-                             pairs,
-                             key=lambda pair: (
-                                 Sequence.hamming(pair[0][:4], pair[1][:4]),
-                                 len(pair[0])),
-                             reverse=True
-                             )
+    # 2) Length of the sequences in each pair. Shorter is preferable.
+    downstream_pairs = sorted(pairs,
+                              key=lambda pair: (
+                                  Sequence.hamming(pair[0][:4], pair[1][:4]),
+                                  1 / len(pair[0])),
+                              reverse=True)
 
-    downstream_pair = downstream_pairs[0] if downstream_pairs else []
+    # Choose the first pair with each melting temperature between 52 and
+    # 60 degrees.
+    downstream_pair = []
+    for pair in downstream_pairs:
+        if 52 <= pair[0].tm <= 60 and 52 <= pair[1].tm <= 60:
+            downstream_pair = pair
+            break
 
     return upstream_pair, downstream_pair
 
