@@ -3,10 +3,10 @@ License information goes here.
 """
 
 import re
-
+from copy import deepcopy
 
 from .utils import (add_tails, complementary_score, contig_complementary_score,
-                    segregate, rtailed, rsorted)
+                    cut, segregate, rtailed, rsorted)
 
 class Sequence:
     """
@@ -580,7 +580,7 @@ class StarpGroup:
         rcandidates: All possible reverse primers. From this list, the
             best primers are chosen to pair with the AMAS primers.
             These primers should have already been sorted, filtered by
-            their, contents and filtered by their binding sites
+            their contents and filtered by their binding sites
     """
 
     def __init__(self, amas1, amas2, snp_position, rcandidates=[], snp=None, num_rprimers=3):
@@ -634,31 +634,82 @@ class StarpGroup:
 
         return self.rprimers
 
-    def add_amas_tails(self):
-        """ Returns modified AMAS primer with tails according to
-        docs/STARP R primerdesign[4311].docx page 6.
+    def set_tails(self, amas1_tail, amas2_tail):
+        self.amas1.tail = cut(amas1_tail, self.amas1)
+        self.amas2.tail = cut(amas2_tail, self.amas2)
 
-        To do this, we need to produce a Cartesian product between
-        the amas pair and rprimers, since different rprimers might
-        cause different tails to be put on AMAS primers.
+    def segregate(self, tail1, tail2):
+        """ Splits this group into max two other groups. In one,
+        amas1 and amas2 have tail1 and tail2 respectively. The
+        corresponding rprimers agree with these tails.
 
-        Returns:
-            A two dimensional array of the form
-            [
-                [amas1, amas2, rprimer],
-                [amas1, amas2, rprimer],
-                ...,
-            ]
-
+        In the other group, amas1 and amas2 have tail2 and tail1
+        respectively. Again, the group's rprimers agree with these
+        tails.
         """
-        to_return = []
-        for rprimer in self.rprimers:
-            amplicon1 = abs(self.amas1.start - rprimer.allele1_end)
-            amplicon2 = abs(self.amas2.start - rprimer.allele2_end)
-            new_amas1, new_amas2 = add_tails(self.amas1, self.amas2, amplicon1, amplicon2, snp_position=self.snp_position)
-            to_return.append(StarpTriple(self.snp, self.amas1, self.amas2, rprimer))
+        
+        groups = []
+        group1 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
+        group1.set_tails(amas1_tail=tail1, amas2_tail=tail2)
+        group1.rprimers = list(filter(lambda rprimer: self.assigns_tail(
+                                             group1.amas1.tail, group1.amas2.tail,
+                                             group1.amas1, group1.amas2, rprimer, self.snp_position),
+                                      self.rprimers))
 
-        return to_return
+        group2 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
+        group2.set_tails(amas1_tail=tail2, amas2_tail=tail1)  # Changed which tails are assigned.
+        group2.rprimers = list(filter(lambda rprimer: self.assigns_tail(
+                                             group2.amas1.tail, group2.amas2.tail,
+                                             group2.amas1, group2.amas2, rprimer, self.snp_position),
+                                      self.rprimers))
+
+        # One of these groups may not have any rprimers.
+        return [group1, group2]
+
+    def assigns_tail(self, amas1_tail, amas2_tail, amas1, amas2, rprimer, snp_position):
+        """ Returns true if the tails defined by the rprimer are equal to
+        amas1_tail and amas2_tail.
+
+        Source: docs/STARP R primerdesign[4311].docx page 6.
+        """
+        tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
+        tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
+
+        amplicon1 = abs(amas1.start - rprimer.allele1_end)
+        amplicon2 = abs(amas2.start - rprimer.allele2_end)
+
+        if snp_position == 'first':
+            if amas1.strand == 1:
+                amas1 = amas1.rev_comp()
+            if amas2.strand == 1:
+                amas2 = amas2.rev_comp()
+
+        if amplicon1 - amplicon2 >= 8:
+            return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+        elif amplicon1 - amplicon2 >= 1:
+            return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
+        elif amplicon1 - amplicon2 == 0:
+            # This branch comes from Table 3 in the STARP paper.
+            assigned_tail = {
+                frozenset({'C', 'G'}): {'C': 1, 'G': 2},
+                frozenset({'C', 'T'}): {'C': 1, 'T': 2},
+                frozenset({'C', 'A'}): {'C': 1, 'A': 2},
+                frozenset({'G', 'T'}): {'G': 1, 'T': 2},
+                frozenset({'G', 'A'}): {'G': 1, 'A': 2},
+                frozenset({'T', 'A'}): {'T': 1, 'A': 2}
+            }
+
+            nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
+
+            if assigned_tail[nucleotides][str(amas1[-1])] == 1:
+                return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+            else:
+                return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
+
+        elif amplicon1 - amplicon2 >= -7:
+            return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+        else:
+            return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
 
 class StarpTriple:
     """ A collection of usable primers in PCR. Includes both AMAS

@@ -119,6 +119,9 @@ class Starp:
         # guarantee unique binding sites.
         rcandidates = rgenerate(self.allele1_aligned, self.allele2_aligned,
                                min_length=18, max_length=27)
+
+        # Filter the primers based on alphabet, repetitive nucleotides,
+        # and very high/low GC content.
         rcandidates = rfilter(rcandidates)
 
         # Remove candidates with multiple binding sites.
@@ -128,31 +131,47 @@ class Starp:
         # Add tails to low melting temperature primers.
         rcandidates = add_rtails(rcandidates)
 
-        # Remove primers with undesirable characteristics after
-        # modifications from add_rtails.
+        # Remove primers that became too long, got too high of a melting
+        # temperature, or significant complementary scores after modifications
+        # from add_rtails.
         rcandidates = rfilter_tailed_primers(rcandidates)
 
+        # Sort primers from best to worst.
         rcandidates = rsorted(rcandidates)
 
         starp_triples = []
+
+        tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
+        tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
+
+        # A list of StarpGroups with tails added to AMAS primers.
+        tailed_groups = []
 
         for group in self.starp_groups:
             group.rcandidates = rcandidates
             group.substitute_amas_bases()
             group.set_rprimers()
+            group1, group2 = group.segregate(tail1, tail2)
+
+            if group1.rprimers:
+                tailed_groups.append(group1)
+            if group2.rprimers:
+                tailed_groups.append(group2)
+
+        for group in tailed_groups:
             if group.snp_position == 'first':
                 # The AMAS primers need to be rev comped to be placed
                 # on the -1 strand.
-                group.amas1 = group.amas1.rev_comp()
-                group.amas2 = group.amas2.rev_comp()
+                if group.amas1.strand == 1:
+                    group.amas1 = group.amas1.rev_comp()
+                if group.amas2.strand == 1:
+                    group.amas2 = group.amas2.rev_comp()
             elif group.snp_position == 'last':
                 # The reverse primers need to be rev comped.
                 group.rprimers = [primer.rev_comp() for primer in group.rprimers]
 
-            starp_triples += group.add_amas_tails()
-
-        self.starp_groups = [group for group in self.starp_groups if group.amas1 and group.amas2 and group.rprimers]
-        self.triples = starp_triples
+        # Replace Starp groups with the groups with AMAS tails.
+        self.starp_groups = tailed_groups
         return self.starp_groups
 
     def html(self, width=60):
