@@ -83,7 +83,7 @@ class Sequence:
         C nucleotides. """
         if not self.sequence:
             return 0
-        return (self.sequence.count('G') + self.sequence.count('C')) / len(self.sequence)
+        return (str(self.sequence).count('G') + str(self.sequence).count('C')) / len(self.sequence)
 
     @property
     def tm(self):
