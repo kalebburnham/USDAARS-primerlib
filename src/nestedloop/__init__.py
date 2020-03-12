@@ -14,7 +14,7 @@ from .data_validation import (validate_reference_sequence,
                               validate_nontargets)
 
 __all__ = [
-    'additive', 'exceptions', 'nestedloop', 'parsers', 'models'
+    'exceptions', 'parsers', 'models'
 ]
 
 TEMPERATURE_MIN = 35.0  # Degrees Celsius
