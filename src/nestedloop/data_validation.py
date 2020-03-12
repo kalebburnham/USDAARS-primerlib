@@ -65,8 +65,7 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
         return cfp, crp
 
     if cfp:
-        sites = (binding_sites((ref_sequence,), cfp)
-                 + binding_sites((ref_sequence,), cfp.rev_comp()))
+        sites = binding_sites((ref_sequence,), cfp)
         if len(sites) == 0:
             raise NestedLoopError(('Forward primer has no binding site in the '
                                    'reference sequence.'))
@@ -74,8 +73,7 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
             raise NestedLoopError(('Forward primer has multiple binding sites '
                                    'in the reference sequence.'))
 
-        nontarget_sites = (binding_sites(nontarget_seqs, cfp)
-                     + binding_sites(nontarget_seqs, cfp.rev_comp()))
+        nontarget_sites = binding_sites(nontarget_seqs, cfp)
         if len(nontarget_sites) > 0:
             raise NestedLoopError(('Forward primer has binding sites in the '
                                    'non-target regions.'))
@@ -85,8 +83,7 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
         cfp = ''
 
     if crp:
-        sites = (binding_sites((ref_sequence,), crp)
-                 + binding_sites((ref_sequence,), crp.rev_comp()))
+        sites = binding_sites((ref_sequence,), crp)
         if len(sites) == 0:
             raise NestedLoopError(('Reverse primer has no binding site in the '
                                    'reference sequence.'))
@@ -94,8 +91,7 @@ def validate_custom_primers(cfp: str, crp: str, ref_sequence, nontarget_seqs):
             raise NestedLoopError(('Reverse primer has multiple binding sites '
                                    'in the reference sequence.'))
 
-        nontarget_sites = (binding_sites(nontarget_seqs, crp)
-                     + binding_sites(nontarget_seqs, crp.rev_comp()))
+        nontarget_sites = binding_sites(nontarget_seqs, crp)
         if len(nontarget_sites) > 0:
             raise NestedLoopError(('Reverse primer has binding sites in the '
                                    'non-target regions.'))
