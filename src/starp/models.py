@@ -329,6 +329,11 @@ class AmasPrimer(Sequence):
         self.span = span
         self.strand = strand
 
+        # The Tm value is based on the original strand. Substitution
+        # modifies the primer sequence so the original is kept track
+        # of here.
+        self._original_seq = self.sequence
+
     def __len__(self):
         return len(self.sequence)
 
@@ -356,7 +361,9 @@ class AmasPrimer(Sequence):
     def tm(self):
         # Melting temperature is returned for the sequence without the
         # tail only.
-        return Sequence(self.sequence).tm
+        # return Sequence(self.sequence).tm
+        return Sequence(self._original_seq).tm
+        
 
     def rev_comp(self):
         """ Return a new AMAS primer with only the sequence changed.
