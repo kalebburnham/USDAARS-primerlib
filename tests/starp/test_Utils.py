@@ -1,7 +1,7 @@
 import unittest
 
-from starp.models import Primer
-from starp.utils import rsorted
+from starp.models import Primer, Sequence
+from starp.utils import cut, rsorted
 
 class TestUtils(unittest.TestCase):
 
@@ -12,6 +12,13 @@ class TestUtils(unittest.TestCase):
         expected = [good_primer, bad_primer]
 
         self.assertEqual(expected, rsorted(primers))
+
+    def test_cut(self):
+        tail = Sequence('GCAACAGGAACCAGCTATGAC')
+        primer = Primer('CTCACACCTCTCAAACGACTG', (0, 0), (0, 0), 1)
+
+        expected = Sequence('GCAACAGGAACCAGCTATGA')
+        self.assertEqual(expected, cut(tail, primer))
 
 if __name__ == "__main__":
     unittest.main()

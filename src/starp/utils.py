@@ -93,18 +93,32 @@ def cut(tail, primer):
             'GACGCAAGTGAGCAGTATGAC'.
         primer: The :class:Primer primer to check overlaps on its 5'
             end.
+
+    Returns:
+        A :class:Sequence object representing the new, shortened tail.
     """
-    s = 'TATGAC'
+    if primer.strand == -1:
+        print(-1, tail, primer)
 
-    overlap = 0
-    for idx in range(6):
-        if s[5-idx:] == primer.sequence[:idx]:
-            overlap = idx+1
 
-    if overlap == 0:
-        return tail
+    strprimer = str(primer)
+
+    if strprimer.startswith('TATGAC'):
+        new_tail = tail[:-6]
+    elif strprimer.startswith('ATGAC'):
+        new_tail = tail[:-5]
+    elif strprimer.startswith('TGAC'):
+        new_tail = tail[:-4]
+    elif strprimer.startswith('GAC'):
+        new_tail = tail[:-3]
+    elif strprimer.startswith('AC'):
+        new_tail = tail[:-2]
+    elif strprimer.startswith('C'):
+        new_tail = tail[:-1]
     else:
-        return tail[:0-overlap]
+        new_tail = tail
+
+    return new_tail
 
 def binding_sites(sequences: tuple, primer, stop=2):
     """
