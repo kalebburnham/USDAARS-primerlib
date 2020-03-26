@@ -124,19 +124,19 @@ class Starp:
         # and very high/low GC content.
         rcandidates = rfilter(rcandidates)
 
-        # Remove candidates with multiple binding sites.
+        # Remove rcandidates with multiple binding sites.
         rcandidates = rfilter_by_binding_sites(rcandidates, self.allele1,
                                                self.allele2, self.nontargets)
 
-        # Add tails to low melting temperature primers.
+        # Add tails to low melting temperature rprimers.
         rcandidates = add_rtails(rcandidates)
 
-        # Remove primers that became too long, got too high of a melting
+        # Remove rprimers that became too long, have too high of a melting
         # temperature, or significant complementary scores after modifications
         # from add_rtails.
         rcandidates = rfilter_tailed_primers(rcandidates)
 
-        # Sort primers from best to worst.
+        # Sort rprimers from best to worst.
         rcandidates = rsorted(rcandidates)
 
         starp_triples = []

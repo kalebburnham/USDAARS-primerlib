@@ -359,11 +359,9 @@ class AmasPrimer(Sequence):
 
     @property
     def tm(self):
-        # Melting temperature is returned for the sequence without the
-        # tail only.
-        # return Sequence(self.sequence).tm
+        """ Return the melting temperature for the original sequence
+        without the tail. """
         return Sequence(self._original_seq).tm
-        
 
     def rev_comp(self):
         """ Return a new AMAS primer with only the sequence changed.
@@ -641,10 +639,6 @@ class StarpGroup:
 
         return self.rprimers
 
-    def set_tails(self, amas1_tail, amas2_tail):
-        self.amas1.tail = cut(amas1_tail, self.amas1)
-        self.amas2.tail = cut(amas2_tail, self.amas2)
-
     def segregate(self, tail1, tail2):
         """ Splits this group into max two other groups. In one,
         amas1 and amas2 have tail1 and tail2 respectively. The
@@ -653,24 +647,36 @@ class StarpGroup:
         In the other group, amas1 and amas2 have tail2 and tail1
         respectively. Again, the group's rprimers agree with these
         tails.
+
+        Once the groups has been made, the tails need to be cut if they
+        have overlapping bases at the 3' end.
+
         """
         
         groups = []
         group1 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
-        group1.set_tails(amas1_tail=tail1, amas2_tail=tail2)
+        group1.amas1.tail = tail1
+        group1.amas2.tail = tail2
         group1.rprimers = list(filter(lambda rprimer: self.assigns_tail(
                                              group1.amas1.tail, group1.amas2.tail,
                                              group1.amas1, group1.amas2, rprimer, self.snp_position),
                                       self.rprimers))
 
         group2 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
-        group2.set_tails(amas1_tail=tail2, amas2_tail=tail1)  # Changed which tails are assigned.
+        group2.amas1.tail = tail2  # Changed which tails are assigned.
+        group2.amas2.tail = tail1
         group2.rprimers = list(filter(lambda rprimer: self.assigns_tail(
                                              group2.amas1.tail, group2.amas2.tail,
                                              group2.amas1, group2.amas2, rprimer, self.snp_position),
                                       self.rprimers))
 
-        # One of these groups may not have any rprimers.
+        group1.amas1.tail = cut(group1.amas1.tail, group1.amas1.sequence, snp_position=group1.snp_position)
+        group1.amas2.tail = cut(group1.amas2.tail, group1.amas2.sequence, snp_position=group1.snp_position)
+
+        group2.amas1.tail = cut(group2.amas1.tail, group2.amas1.sequence, snp_position=group2.snp_position)
+        group2.amas2.tail = cut(group2.amas2.tail, group2.amas2.sequence, snp_position=group2.snp_position)
+
+        # Note: note of these groups may not have any rprimers.
         return [group1, group2]
 
     def assigns_tail(self, amas1_tail, amas2_tail, amas1, amas2, rprimer, snp_position):
@@ -691,10 +697,11 @@ class StarpGroup:
             if amas2.strand == 1:
                 amas2 = amas2.rev_comp()
 
+        return_val = False
         if amplicon1 - amplicon2 >= 8:
-            return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+            return_val = (tail1 == amas1_tail and amas2 == amas2_tail)
         elif amplicon1 - amplicon2 >= 1:
-            return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
+            return_val = (tail2 == amas1_tail and tail1, amas2 == amas2_tail)
         elif amplicon1 - amplicon2 == 0:
             # This branch comes from Table 3 in the STARP paper.
             assigned_tail = {
@@ -709,14 +716,16 @@ class StarpGroup:
             nucleotides = frozenset({str(amas1[-1]), str(amas2[-1])})
 
             if assigned_tail[nucleotides][str(amas1[-1])] == 1:
-                return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+                return_val = (tail1 == amas1_tail and tail2 == amas2_tail)
             else:
-                return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
+                return_val = (tail2 == amas1_tail and tail1 == amas2_tail)
 
         elif amplicon1 - amplicon2 >= -7:
-            return cut(tail1, amas1) == amas1_tail and cut(tail2, amas2) == amas2_tail
+            return_val = (tail1 == amas1_tail and tail2 == amas2_tail)
         else:
-            return cut(tail2, amas1) == amas1_tail and cut(tail1, amas2) == amas2_tail
+            return_val = (tail2 == amas1_tail and tail1, amas2 == amas2_tail)
+
+        return return_val
 
 class StarpTriple:
     """ A collection of usable primers in PCR. Includes both AMAS

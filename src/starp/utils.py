@@ -77,7 +77,7 @@ def add_rtails(rprimers):
     low = rtailed(low)
     return low + high
 
-def cut(tail, primer):
+def cut(tail, primer, snp_position='last'):
     """
     Checks the overlap between the 3' end of 'TATGAC' and the 5' end of
     the primer, and returns the tail with the overlapping bases
@@ -97,11 +97,11 @@ def cut(tail, primer):
     Returns:
         A :class:Sequence object representing the new, shortened tail.
     """
-    if primer.strand == -1:
-        print(-1, tail, primer)
 
-
-    strprimer = str(primer)
+    if snp_position == 'last':
+        strprimer = str(primer)
+    else:
+        strprimer = str(primer.rev_comp())
 
     if strprimer.startswith('TATGAC'):
         new_tail = tail[:-6]
