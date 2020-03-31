@@ -9,7 +9,7 @@ import itertools
 import time
 
 from .amasfactory import (generate_amas_for_substitution,
-                          generate_amas_for_indel, substitute_bases)
+                          generate_amas_for_indel)
 from .utils import (add_rtails, rgenerate, rfilter, rfilter_tailed_primers,
                     rsorted, rfilter_by_binding_sites,
                     rtailed, add_tails)
@@ -78,6 +78,11 @@ class Starp:
         self.triples = []
 
         # Generate a Starp Group for each SNP.
+        # A StarpGroup contains a SNP, an AMAS primer for both alleles,
+        # and the relative SNP position to both alleles (first or last
+        # nucleotide). Later, the groups receive rcandidates and each
+        # group determines which are appropriate rprimers for itself.
+        # These are saved in self.starp_groups
         self.prototype()
 
         logging.getLogger().setLevel(logging.INFO)
@@ -89,7 +94,7 @@ class Starp:
         self.snp = snp
 
     def prototype(self):
-        """ Generate a Starp Group for each SNP and add them to
+        """ Generate Starp Groups for each SNP and add them to
         self.starp_groups. """
         for snp in self.snps:
             # Generate the best AMAS pair depending on the type of polymorphism.
@@ -139,17 +144,26 @@ class Starp:
         # Sort rprimers from best to worst.
         rcandidates = rsorted(rcandidates)
 
-        starp_triples = []
-
         tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
         tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
 
         # A list of StarpGroups with tails added to AMAS primers.
         tailed_groups = []
 
+        # The following steps are completed for each starp group:
+        # 1. The group is supplied with all possible rcandidates.
+        # 2. Sort the rcandidates and select the best primers for
+        #    this group's AMAS primer pair.
+        # 3. Split the group into 2 groups. In group1, the AMAS primers
+        #    are attached tail1 and tail2 respectively. In group2, the
+        #    AMAS primers are attached tail2 and tail1.
+        #    
+        #    Then, each group keeps the rprimers that agree with the
+        #    tails attached to the group's AMAS primers.
+        #
+        # 4. If each group has suitable primers, add it to tailed_groups.
         for group in self.starp_groups:
             group.rcandidates = rcandidates
-            group.substitute_amas_bases()
             group.set_rprimers()
             group1, group2 = group.segregate(tail1, tail2)
 
@@ -158,6 +172,8 @@ class Starp:
             if group2.rprimers:
                 tailed_groups.append(group2)
 
+        # Primers that come before the SNP should be on the plus strand,
+        # while those after the primer should be on the minus strand.
         for group in tailed_groups:
             if group.snp_position == 'first':
                 # The AMAS primers need to be rev comped to be placed
