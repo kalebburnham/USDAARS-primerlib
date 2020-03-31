@@ -4,6 +4,7 @@ License information goes here.
 
 from .parsers import TwoAlleles
 from .models import Sequence, Snp, AmasPrimer
+from .utils import hamming
 
 # These substitution matrices were created to deal with the
 # combinatorial explosion of possible primer endings given by
@@ -138,6 +139,168 @@ sub_index_two_snps = {
         'NSSA' : -3, 'NSST' : -2, 'NSWA' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
         'NWSA' : ('S', -2, 'W', -3), 'NWST' : ('S', -2, 'W', -3), 'NWWA' : -3, 'NWWT' : -2}}
 
+
+def differences_at_end(pair, snp_position):
+    """
+    If snp_position is 'last', return the number of nucleotide
+    differences in the last 4 nucleotides. If snp_position is
+    'first', return the number of differences in the first 4
+    nucleotides.
+
+    Args:
+        pair: A 2-tuple of AMAS primers
+        snp_position: Relative SNP position. Either 'first' or
+            'last'.
+    
+    Returns:
+        The hamming distance between the first or last 4 nucleotides.
+    
+    Raise:
+        ValueError if either primer is shorter than 4 nucleotides.
+    """
+
+    seq1 = str(pair[0].sequence)
+    seq2 = str(pair[1].sequence)
+
+    if len(seq1) < 4 or len(seq2) < 4:
+        raise ValueError('Primers must be greater than 4 nucleotides.')
+
+    if snp_position == 'first':
+        return hamming(seq1[:4], seq2[:4])
+    else:
+        return hamming(seq1[-4:], seq2[-4:])
+
+def preserve_best_and_substitute(pairs, snp_position):
+    """
+    Corresponds to One SNP module, Two SNP module, and Three SNP module
+    from STARP F primer design[4312].docx
+
+
+    (1) Find the number of SNPs at the end of the shortest primer pair.
+        This value influences the cutoff used when checking if the total
+        SNP number between each pair is greater than 'cutoff'.
+
+    (2) The temperature range and desired average temperature is chosen
+        based on if there are any 'high snp pairs' from part 1. If there
+        are none, then the substitute flag is set to true to signal that
+        the selected primer pair will undergo substitutions.
+
+    If no primers fit these conditions or the list of pairs is empty,
+    None is returned.
+
+    Args:
+        pairs: A list of 2-tuples of AMAS pairs.
+        snp_position: Position of the SNP relative to the AMAS primers.
+            Should be either 'first' or 'last'.
+
+    Returns:
+        A 2-tuple representing the best AMAS pair.
+        None if no primers have the described qualities.
+    """
+
+    # If the list is empty there is no good primer.
+    if not pairs:
+        return None
+
+    # Flag for checking if substitutions need to be made on the selected
+    # AMAS primer.
+    substitute = False
+
+    # Sort pairs by their length, shortest to longest.
+    pairs = sorted(pairs, key=len)
+
+    # Calculate SNP numbers at the ends of the first pair.
+    snp_number = differences_at_end(pairs[0], snp_position)
+
+    # All pairs should have 1 difference at the SNP location.
+    if snp_number == 1:
+        total_snp_number_cutoff = 4
+    elif snp_number == 2:
+        total_snp_number_cutoff = 3
+    else:
+        # All primers will be selected in this case.
+        total_snp_number_cutoff = 0
+
+    # Get pairs with >= 'total_snp_number_cutoff' SNPs
+    high_snp_pairs = list(filter(
+        lambda pair: hamming(pair[0].sequence, pair[1].sequence) >= total_snp_number_cutoff,
+        pairs
+    ))
+
+    if high_snp_pairs:
+        if snp_number > 2:
+            low = 52
+            high = 58
+            average = 58
+        else:
+            # If there are some, try find the pair with Tm between 53
+            # and 60 C and average is closest to 53 C.
+            low = 53
+            high = 60
+            average = 53
+    else:
+        substitute = True
+        low = 54
+        high = 58
+        average = 58
+
+    # Keep pairs with Tm between 'low' and 'high'
+    if high_snp_pairs:
+        acceptable_pairs = list(filter(
+            lambda pair: low <= pair[0].tm <= high and low <= pair[1].tm <= high,
+            high_snp_pairs
+        ))
+    else:
+        acceptable_pairs = list(filter(
+            lambda pair: low <= pair[0].tm <= high and low <= pair[1].tm <= high,
+            pairs
+        ))
+
+    # Sort pairs by average Tm closest to 'average' C.
+    sorted_pairs = sorted(
+        acceptable_pairs,
+        key=lambda pair: abs(((pair[0].tm + pair[1].tm) / 2) - average)
+    )
+
+    # If there are no acceptable primer pairs, return None.
+    if not sorted_pairs:
+        return None
+
+    # If there are acceptable primer pairs, select the first one from
+    # the sorted list since it is closest to the desired temperature.
+    best_pair = sorted_pairs[0]
+
+    # If the flag is on, the bases of the best pair need to be
+    # substituted.
+    if substitute:
+        substitute_bases(best_pair, snp_position=snp_position)
+    
+    return best_pair
+
+def amas_pair_filter(amas_pairs):
+    """
+    Removes primers pairs when one of the constituent primers has:
+    1. >= 10 contiguous G/C or >= 12 contiguous A/T
+    2. >= 8 of any single nucleotide
+    3. >= 6 dinucleotide repeats
+    4. GC > 0.80 or GC < 0.20
+
+    Args:
+        amas_pairs: A list of 2-tuples of AmasPrimers.
+    """
+    def filter_func(pair):
+        for primer in pair:
+            seq = Sequence(primer.sequence)
+            if (seq.has_contig_gc_at(10, 12)
+                    or seq.has_repeated_nucleotide(8)
+                    or seq.has_dinucleotide_repeat(6)
+                    or seq.gc < 0.20
+                    or seq.gc > 0.80):
+                return False
+        return True
+
+    return list(filter(filter_func, amas_pairs))
+
 def best_pair(pairs):
     """
     Chooses the best AMAS primer pair.
@@ -213,6 +376,7 @@ def seq_to_ambiguity_code(sequence: str):
     """ Converts 'C' and 'G' to 'S', and 'A'/'T' to 'W' as defined by
     http://www.reverse-complement.com/ambiguity.html
 
+
     Note that these are not being used to designate SNPs. In Dr. Long's
     instructions, many times he asks for a count of how many G/C bases
     are in a certain sequence, and this function reduces the sizes of
@@ -232,13 +396,20 @@ def generate_amas_for_substitution(allele1, allele2, position):
         allele2: The aligned second allele.
         position: The index around which to generate primers.
     """
-    pairs = zip(generate_amas_upstream(allele1, 1, position, 16, 26),
-                generate_amas_upstream(allele2, 2, position, 16, 26))
-    upstream_pair = best_pair(pairs)
+    pairs = list(zip(generate_amas_upstream(allele1, 1, position, 16, 26),
+                     generate_amas_upstream(allele2, 2, position, 16, 26)))
 
-    pairs = zip(generate_amas_downstream(allele1, 1, position, 16, 26),
-                generate_amas_downstream(allele2, 2, position, 16, 26))
-    downstream_pair = best_pair(pairs)
+    # Remove pairs whose primers have undesirable characteristics.
+    pairs = amas_pair_filter(pairs)
+
+    upstream_pair = preserve_best_and_substitute(pairs, snp_position='last')
+
+    pairs = list(zip(generate_amas_downstream(allele1, 1, position, 16, 26),
+                     generate_amas_downstream(allele2, 2, position, 16, 26)))
+
+    pairs = amas_pair_filter(pairs)
+    
+    downstream_pair = preserve_best_and_substitute(pairs, snp_position='first')
 
     return upstream_pair, downstream_pair
 
@@ -299,7 +470,7 @@ def generate_amas_for_indel(allele1, allele2, position):
     # Create upstream AMAS primers by moving the SNP back 15 positions
     # and creating downstream primers from that new position.
     pairs = zip(generate_amas_downstream(allele1, 1, position-15, 16, 26),
-                generate_amas_downstream(allele2, 2, position-15, 16, 26))
+                     generate_amas_downstream(allele2, 2, position-15, 16, 26))
 
     # Remove pairs with the same nucleotide on the 3' end.
     pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
@@ -314,11 +485,13 @@ def generate_amas_for_indel(allele1, allele2, position):
                                 1 / len(pair[0])),
                             reverse=True)
 
-    # Choose the first pair with melting temperature between 52 and 60 degrees.
-    upstream_pair = []
+    # Go through the list, verifying the melting temperatures are good and
+    # substituting bases if needed. Since these are already sorted, the first
+    # primer that succeeds is the one sought after.
+    upstream_pair = None
     for pair in upstream_pairs:
-        if 52 <= pair[0].tm <= 60 and 52 <= pair[1].tm <= 60:
-            upstream_pair = pair
+        upstream_pair = preserve_best_and_substitute([pair], snp_position='last')
+        if upstream_pair:
             break
 
     # Create downstream AMAS primers by moving the SNP forward 15
@@ -338,6 +511,15 @@ def generate_amas_for_indel(allele1, allele2, position):
                                   Sequence.hamming(pair[0][:4], pair[1][:4]),
                                   1 / len(pair[0])),
                               reverse=True)
+
+    # Go through the list, verifying the melting temperatures are good and
+    # substituting bases if needed. Since these are already sorted, the first
+    # primer that succeeds is the one sought after.
+    downstream_pair = None
+    for pair in downstream_pairs:
+        upstream_pair = preserve_best_and_substitute([pair], snp_position='first')
+        if downstream_pair:
+            break
 
     # Choose the first pair with each melting temperature between 52 and
     # 60 degrees.
