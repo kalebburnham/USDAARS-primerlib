@@ -322,7 +322,7 @@ class AmasPrimer(Sequence):
             [inclusive, exclusive)
     """
 
-    def __init__(self, sequence, allele_num, span, strand=1):
+    def __init__(self, sequence, allele_num, span, strand=1, original_seq=None):
         super().__init__(sequence)
         self.tail = Sequence('')  # A sequence object.
         self.allele_num = None  # 1 or 2
@@ -332,7 +332,10 @@ class AmasPrimer(Sequence):
         # The Tm value is based on the original strand. Substitution
         # modifies the primer sequence so the original is kept track
         # of here.
-        self._original_seq = self.sequence
+        if original_seq:
+            self._original_seq = original_seq
+        else:
+            self._original_seq = self.sequence
 
     def __len__(self):
         return len(self.sequence)
@@ -367,7 +370,8 @@ class AmasPrimer(Sequence):
         """ Return a new AMAS primer with only the sequence changed.
         Tails are not reverse complemented."""
         seq = Sequence(self.sequence).rev_comp()
-        primer = AmasPrimer(seq, self.allele_num, self.span, strand=self.strand*-1)
+        original_seq = Sequence(self._original_seq).rev_comp()
+        primer = AmasPrimer(seq, self.allele_num, self.span, strand=self.strand*-1, original_seq=original_seq)
         primer.tail = self.tail
         return primer
     
