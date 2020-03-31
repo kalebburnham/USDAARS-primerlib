@@ -16,5 +16,6 @@ setup(
         'Biopython',
         'bs4',
         'regex',
+        'lxml',
    ]
 )
