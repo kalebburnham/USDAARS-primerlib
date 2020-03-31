@@ -609,7 +609,8 @@ class StarpGroup:
             [Modified amas1, Modified amas2]
         """
         from .amasfactory import (substitute_bases,)
-        self.amas1, self.amas2 = substitute_bases([self.amas1, self.amas2], snp_position=self.snp_position)
+
+        self.amas1.sequence, self.amas2.sequence = substitute_bases([self.amas1.sequence, self.amas2.sequence], snp_position=self.snp_position)
         return [self.amas1, self.amas2]
     
     def set_rprimers(self):

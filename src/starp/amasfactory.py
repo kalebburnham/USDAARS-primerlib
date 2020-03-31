@@ -273,7 +273,7 @@ def preserve_best_and_substitute(pairs, snp_position):
     # If the flag is on, the bases of the best pair need to be
     # substituted.
     if substitute:
-        substitute_bases(best_pair, snp_position=snp_position)
+        best_pair[0].sequence, best_pair[1].sequence = substitute_bases((best_pair[0].sequence, best_pair[1].sequence), snp_position=snp_position)
     
     return best_pair
 
@@ -573,34 +573,42 @@ def substitute_bases(pair, snp_position='last'):
     Substitutes bases according to Dr. Long's instructions.
     See docs/STARP F primer design[4312].docx, pages 2-14.
 
-    snp_position should be either 'first' or 'last', signifying
-    if the snp is at the beginning or end of the pair.
+    Args:
+        pair: A 2-tuple of Sequence objects or strings.
+        snp_position: should be either 'first' or 'last', signifying
+            if the snp is at the beginning or end of the pair.
     """
     if not pair:
         return None
+
+    if not ((type(pair[0]) == Sequence and type(pair[1]) == Sequence)
+            or (type(pair[0]) == str and type(pair[1]) == str)):
+        raise ValueError('Pair must be a tuple of strings or Sequences')
 
     # All of the keys in the large dicts require 4+ characters.
     if len(pair[0]) < 4:
         return pair
 
     if snp_position == 'first':
-        # The SNP is at the beginning of the sequence, e.g.
-        # pair[0] = XNNNNNNNN...
-        # pair[1] = YNNNNNNNN...
-        snp = TwoAlleles(f'>\n{pair[0][0]}\n>\n{pair[1][0]}').snps()[0]
-        local_snps = TwoAlleles(f'>\n{pair[0][1:4]}\n>\n{pair[1][1:4]}').snps()
-    elif snp_position == 'last':
-        snp = TwoAlleles(f'>\n{pair[0][-1]}\n>\n{pair[1][-1]}').snps()[0]
-        local_snps = TwoAlleles(f'>\n{pair[0][-4:-1]}\n>\n{pair[1][-4:-1]}').snps()
+        str_pair = (str(Sequence(pair[0]).rev_comp()), str(Sequence(pair[1]).rev_comp()))
+    else:
+        str_pair = (str(pair[0]), str(pair[1]))
+
+    snp = Snp(f'.{len(str_pair[0])-1}{str_pair[0][-1]}>{str_pair[1][-1]}')
+    local_snps = TwoAlleles(f'>\n{str_pair[0][-4:-1]}\n>\n{str_pair[1][-4:-1]}').snps()
 
     if len(local_snps) == 0:
-        new_amas1, new_amas2 = substitute_with_one_snp(pair, snp_position)
-        pair[0].sequence = new_amas1
-        pair[1].sequence = new_amas2
+        new_amas1, new_amas2 = substitute_with_one_snp(str_pair, 'last')
+        pair = (str(new_amas1), str(new_amas2))
     elif len(local_snps) == 1:
-        new_amas1, new_amas2 = substitute_with_two_snps(pair, snp, snp_position)
-        pair[0].sequence = new_amas1
-        pair[1].sequence = new_amas2
+        new_amas1, new_amas2 = substitute_with_two_snps(str_pair, snp, 'last')
+        pair = (str(new_amas1), str(new_amas2))
+
+    pair = (Sequence(pair[0]), Sequence(pair[1]))
+
+    # Reorient primers
+    if snp_position == 'first':
+        pair = (pair[0].rev_comp(), pair[1].rev_comp())
 
     return pair
 
@@ -609,6 +617,9 @@ def substitute_with_one_snp(pair, snp_position='last'):
     Substitute the bases of the pair's sequences when the only SNP
     occurs at either the first or last nucleotide. This function probably
     should only be called by substitute_bases().
+
+    This function assumes the primers in the pair are oriented on the
+    plus strand.
 
     Notation for ambiguity codes comes from
     http://www.reverse-complement.com/ambiguity.html
@@ -625,10 +636,14 @@ def substitute_with_one_snp(pair, snp_position='last'):
         A 2-tuple of the pair with appropriate bases substituted
             of type Sequence.
     """
-    pair = (str(pair[0]), str(pair[1]))
 
+    # If the pair are downstream primers, as noted by snp_position
+    # being 'first', we can reverse complement them and still use
+    # the same instructions.
     if snp_position == 'first':
-        pair = (pair[0][::-1], pair[1][::-1])
+        pair = (str(pair[0].rev_comp()), str(pair[1].rev_comp()))
+    else:
+        pair = (str(pair[0]), str(pair[1]))
 
     if not pair[0][-1] != pair[1][-1]:
         raise ValueError('The sequences do not have a SNP in the last '
@@ -649,9 +664,10 @@ def substitute_with_one_snp(pair, snp_position='last'):
     idx_to_sub = sub_index_one_snp[snp.nucleotides][code]
     seq2 = substitute(pair[1], idx_to_sub)
 
+    # Orient the sequences back to their original orientation.
     if snp_position == 'first':
-        seq1 = seq1[::-1]
-        seq2 = seq2[::-1]
+        seq1 = seq1.rev_comp()
+        seq2 = seq2.rev_comp()
 
     return (seq1, seq2)
 
@@ -661,10 +677,27 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     between the sequences in the last four bases. This function probably
     should only be called by substitute_bases().
 
+    This function assumes the primers in the pair are oriented on the
+    plus strand.
+
     For reference, see
     docs/STARP F primer design[4312].docx
     """
-    pair = (str(pair[0]), str(pair[1]))
+    # Long's written instructions assume the SNP is placed at the end of
+    # the sequences. However, this function will also be called with a
+    # SNP at the beginning of the sequences. In this case, his
+    # verbal instructions were to perform the same operations but at the
+    # beginning of the sequences. To avoid making another very similar
+    # function, the sequences are reversed here then returned to their
+    # original orientation at the end of the function.
+
+    # If the pair are downstream primers, as noted by snp_position
+    # being 'first', we can reverse complement them and still use
+    # the same instructions.
+    if snp_position == 'first':
+        pair = (str(pair[0].rev_comp()), str(pair[1].rev_comp()))
+    else:
+        pair = (str(pair[0]), str(pair[1]))
 
     # Long's written instructions assume the SNP is placed at the end of
     # the sequences. However, this function will also be called with a
@@ -673,8 +706,6 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     # beginning of the sequences. To avoid making another very similar
     # function, the sequences are reversed here then returned to their
     # original orientation at the end of the function.
-    if snp_position == 'first':
-        pair = (pair[0][::-1], pair[1][::-1])
 
     if not pair[0][-1] != pair[1][-1]:
         raise ValueError('The sequences do not have a SNP in the last '
@@ -730,10 +761,9 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
 
     seq2 = substitute(pair[1], idx_to_sub)
 
-    # Return the sequences to their original orientation if they were
-    # reversed at the start of the method.
+    # Orient the sequences back to their original orientation.
     if snp_position == 'first':
-        seq1 = seq1[::-1]
-        seq2 = seq2[::-1]
+        seq1 = seq1.rev_comp()
+        seq2 = seq2.rev_comp()
 
     return (seq1, seq2)
