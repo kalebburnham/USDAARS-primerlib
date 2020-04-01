@@ -675,11 +675,11 @@ class StarpGroup:
                                              group2.amas1, group2.amas2, rprimer, self.snp_position),
                                       self.rprimers))
 
-        group1.amas1.tail = cut(group1.amas1.tail, group1.amas1.sequence, snp_position=group1.snp_position)
-        group1.amas2.tail = cut(group1.amas2.tail, group1.amas2.sequence, snp_position=group1.snp_position)
+        group1.amas1.tail = cut(group1.amas1.tail, Sequence(group1.amas1.sequence), snp_position=group1.snp_position)
+        group1.amas2.tail = cut(group1.amas2.tail, Sequence(group1.amas2.sequence), snp_position=group1.snp_position)
 
-        group2.amas1.tail = cut(group2.amas1.tail, group2.amas1.sequence, snp_position=group2.snp_position)
-        group2.amas2.tail = cut(group2.amas2.tail, group2.amas2.sequence, snp_position=group2.snp_position)
+        group2.amas1.tail = cut(group2.amas1.tail, Sequence(group2.amas1.sequence), snp_position=group2.snp_position)
+        group2.amas2.tail = cut(group2.amas2.tail, Sequence(group2.amas2.sequence), snp_position=group2.snp_position)
 
         # Note: note of these groups may not have any rprimers.
         return [group1, group2]
@@ -689,6 +689,14 @@ class StarpGroup:
         amas1_tail and amas2_tail.
 
         Source: docs/STARP R primerdesign[4311].docx page 6.
+
+        Args:
+            amas1_tail:
+            amas2_tail:
+            amas1:
+            amas2:
+            rprimer:
+            snp_position:
         """
         tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
         tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')

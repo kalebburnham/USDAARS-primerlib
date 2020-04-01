@@ -175,7 +175,6 @@ def preserve_best_and_substitute(pairs, snp_position):
     Corresponds to One SNP module, Two SNP module, and Three SNP module
     from STARP F primer design[4312].docx
 
-
     (1) Find the number of SNPs at the end of the shortest primer pair.
         This value influences the cutoff used when checking if the total
         SNP number between each pair is greater than 'cutoff'.
@@ -301,51 +300,6 @@ def amas_pair_filter(amas_pairs):
 
     return list(filter(filter_func, amas_pairs))
 
-def best_pair(pairs):
-    """
-    Chooses the best AMAS primer pair.
-    The best pair is the one with an average melting temperature
-    closest to 58 C, with both primer's Tm between 53 and 60 C.
-
-    If no pairs have this quality, then return None.
-
-    Args:
-        pairs: A list of 2-tuples of AMAS pairs.
-
-    Returns:
-        A 2-tuple representing the best AMAS pair if a pair exists
-        with both primers having a Tm between 54 and 58 C.
-
-        None if a pair with this quality does not exist.
-
-    Raises:
-        None.
-    """
-    tm_dict = dict()
-
-    # Put pairs and melting temperatures in a dict.
-    # (pair[0], pair[1]) : (tm1, tm2)
-    tm_dict = {pair : (pair[0].tm, pair[1].tm) for pair in pairs}
-
-    # Keep the pairs with both melting temperatures between 54 and 58 C.
-    good_pairs = {pair : tm_dict[pair]
-                  for pair in tm_dict
-                  if (53 <= tm_dict[pair][0] <= 60
-                      and 53 <= tm_dict[pair][1] <= 60)}
-
-    # Compute the average melting temperatures between
-    average_tms = {pair : (good_pairs[pair][0]+good_pairs[pair][1])/2
-                   for pair in good_pairs}
-
-    best_pairs = sorted(average_tms, key=lambda x: abs(average_tms[x]-58))
-
-    if best_pairs == []:
-        best_pair = None
-    else:
-        best_pair = best_pairs[0]
-
-    return best_pair
-
 def substitute(seq, idx):
     """
     Substitutes the given index of the allele according to the
@@ -388,8 +342,6 @@ def seq_to_ambiguity_code(sequence: str):
 def generate_amas_for_substitution(allele1, allele2, position):
     """ Attempts to find the best upstream pair and the best
     downstream pair. These could be None.
-
-    Does not substitute any bases.
     
     Args:
         allele1: The aligned first allele.
@@ -414,7 +366,7 @@ def generate_amas_for_substitution(allele1, allele2, position):
     return upstream_pair, downstream_pair
 
 def generate_amas_for_indel(allele1, allele2, position):
-    """ Does not substitute any bases.
+    """
     
     An example works best.
 
@@ -473,7 +425,10 @@ def generate_amas_for_indel(allele1, allele2, position):
                      generate_amas_downstream(allele2, 2, position-15, 16, 26))
 
     # Remove pairs with the same nucleotide on the 3' end.
-    pairs = filter(lambda pair: pair[0][-1] != pair[1][-1], pairs)
+    pairs = list(filter(lambda pair: pair[0][-1] != pair[1][-1], pairs))
+
+    # Filter pairs for undesirable characteristics.
+    pairs = amas_pair_filter(pairs)
 
     # Order the pairs based on
     # 1) The number of nucleotide differences in the last 4 bases.
@@ -500,7 +455,10 @@ def generate_amas_for_indel(allele1, allele2, position):
                 generate_amas_upstream(allele2, 2, position+15, 16, 26))
 
     # Remove pairs with the same nucleotide on the 5' end.
-    pairs = filter(lambda pair: pair[0][0] != pair[1][0], pairs)
+    pairs = list(filter(lambda pair: pair[0][0] != pair[1][0], pairs))
+
+    # Filter pairs for undesirable characteristics
+    pairs = amas_pair_filter(pairs)
 
     # Order the pairs based on
     # 1) The number of nucleotide differences in the first 4 bases.
@@ -517,16 +475,8 @@ def generate_amas_for_indel(allele1, allele2, position):
     # primer that succeeds is the one sought after.
     downstream_pair = None
     for pair in downstream_pairs:
-        upstream_pair = preserve_best_and_substitute([pair], snp_position='first')
+        downstream_pair = preserve_best_and_substitute([pair], snp_position='first')
         if downstream_pair:
-            break
-
-    # Choose the first pair with each melting temperature between 52 and
-    # 60 degrees.
-    downstream_pair = []
-    for pair in downstream_pairs:
-        if 52 <= pair[0].tm <= 60 and 52 <= pair[1].tm <= 60:
-            downstream_pair = pair
             break
 
     return upstream_pair, downstream_pair
