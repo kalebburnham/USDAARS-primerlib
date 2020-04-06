@@ -281,13 +281,17 @@ def preserve_best_and_substitute(pairs, snp_position):
     
     return best_pair
 
-def amas_pair_filter(amas_pairs):
+def amas_pair_filter(amas_pairs, snp_position):
     """
     Removes primers pairs when one of the constituent primers has:
     1. >= 10 contiguous G/C or >= 12 contiguous A/T
-    2. >= 8 of any single nucleotide
-    3. >= 6 dinucleotide repeats
-    4. GC > 0.80 or GC < 0.20
+    2. Mononucleotide repeat of length 8+
+    3. If snp_position == 'first':
+            >= 4 A/Ts or >= 5 G/Cs in last 6 bases
+        Else if snp_position == 'last':
+            >= 4 A/Ts or >= 5 G/Cs in first 6 bases
+    4. Dinucleotide repeat of length 6+
+    5. GC > 0.80 or GC < 0.20
 
     Args:
         amas_pairs: A list of 2-tuples of AmasPrimers.
@@ -296,11 +300,18 @@ def amas_pair_filter(amas_pairs):
         for primer in pair:
             seq = Sequence(primer.sequence)
             if (seq.has_contig_gc_at(10, 12)
-                    or seq.has_repeated_nucleotide(8)
+                    or seq.has_mononucleotide_repeat(8, 8)
                     or seq.has_dinucleotide_repeat(6)
                     or seq.gc < 0.20
                     or seq.gc > 0.80):
                 return False
+            
+            if snp_position == 'last' and seq.has_in_last(5, 4, 6):
+                return False
+
+            if snp_position == 'first' and seq.has_in_first(5, 4, 6):
+                return False
+
         return True
 
     return list(filter(filter_func, amas_pairs))
@@ -357,14 +368,14 @@ def generate_amas_for_substitution(allele1, allele2, position):
                      generate_amas_upstream(allele2, 2, position, 16, 26)))
 
     # Remove pairs whose primers have undesirable characteristics.
-    pairs = amas_pair_filter(pairs)
+    pairs = amas_pair_filter(pairs, snp_position='last')
 
     upstream_pair = preserve_best_and_substitute(pairs, snp_position='last')
 
     pairs = list(zip(generate_amas_downstream(allele1, 1, position, 16, 26),
                      generate_amas_downstream(allele2, 2, position, 16, 26)))
 
-    pairs = amas_pair_filter(pairs)
+    pairs = amas_pair_filter(pairs, snp_position='first')
     
     downstream_pair = preserve_best_and_substitute(pairs, snp_position='first')
 
@@ -433,7 +444,7 @@ def generate_amas_for_indel(allele1, allele2, position):
     pairs = list(filter(lambda pair: pair[0][-1] != pair[1][-1], pairs))
 
     # Filter pairs for undesirable characteristics.
-    pairs = amas_pair_filter(pairs)
+    pairs = amas_pair_filter(pairs, snp_position='last')
 
     # Order the pairs based on
     # 1) The number of nucleotide differences in the last 4 bases.
@@ -463,7 +474,7 @@ def generate_amas_for_indel(allele1, allele2, position):
     pairs = list(filter(lambda pair: pair[0][0] != pair[1][0], pairs))
 
     # Filter pairs for undesirable characteristics
-    pairs = amas_pair_filter(pairs)
+    pairs = amas_pair_filter(pairs, snp_position='first')
 
     # Order the pairs based on
     # 1) The number of nucleotide differences in the first 4 bases.
