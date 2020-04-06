@@ -27,12 +27,17 @@ from .utils import hamming
 # then substitute the -4th index. If it has an A or T in the
 # additional SNP position, substitute the -3 index.
 
+# S -> G or C
+# W -> A or T
+# P -> G/C or A/T SNP
+# N -> A/G, A/C, T/G, or T/C SNP
+
 sub_index_one_snp = {
     frozenset(('C', 'G')) : {
-        'SSSC' : -3, 'SSSG' : -2, 'SSWC' : (-3, -4), 'SSWG' : (-3, -4),
-        'SWSC' : (-2, -4), 'SWSG' : (-2, -4), 'SWWC' : (-2, -3), 'SWWG' : (-2, -3),
-        'WSSC' : (-2, -3), 'WSSG' : (-2, -3), 'WSWC' : (-2, -4), 'WSWG' : (-2, -4),
-        'WWSC' : (-3, -4), 'WWSG' : (-3, -4), 'WWWC' : -3, 'WWWG' : -2},
+        'SSSC' : -3, 'SSSG' : -2, 'SSWC' : -4, 'SSWG' : -3,
+        'SWSC' : -4, 'SWSG' : -2, 'SWWC' : -3, 'SWWG' : -2,
+        'WSSC' : -3, 'WSSG' : -2, 'WSWC' : -4, 'WSWG' : -2,
+        'WWSC' : -4, 'WWSG' : -3, 'WWWC' : -3, 'WWWG' : -2},
     frozenset(('C', 'T')) : {
         'SSSC' : -2, 'SSST' : -3, 'SSWC' : -4, 'SSWT' : -3,
         'SWSC' : -2, 'SWST' : -4, 'SWWC' : -2, 'SWWT' : -3,
