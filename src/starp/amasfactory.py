@@ -287,9 +287,9 @@ def amas_pair_filter(amas_pairs, snp_position):
     1. >= 10 contiguous G/C or >= 12 contiguous A/T
     2. Mononucleotide repeat of length 8+
     3. If snp_position == 'first':
-            >= 4 A/Ts or >= 5 G/Cs in last 6 bases
-        Else if snp_position == 'last':
-            >= 4 A/Ts or >= 5 G/Cs in first 6 bases
+           has mononucleotide repeat of 4 A/Ts or 5 G/Cs in first 6 bases
+       Else if snp_position == 'last':
+           has mononucleotide repeat of 4 A/Ts or 5 G/Cs in last 6 bases
     4. Dinucleotide repeat of length 6+
     5. GC > 0.80 or GC < 0.20
 
@@ -306,10 +306,10 @@ def amas_pair_filter(amas_pairs, snp_position):
                     or seq.gc > 0.80):
                 return False
             
-            if snp_position == 'last' and seq.has_in_last(5, 4, 6):
+            if snp_position == 'last' and seq[-6:].has_mononucleotide_repeat(5, 4):
                 return False
 
-            if snp_position == 'first' and seq.has_in_first(5, 4, 6):
+            if snp_position == 'first' and seq[:6].has_mononucleotide_repeat(5, 4):
                 return False
 
         return True
