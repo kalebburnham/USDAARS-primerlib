@@ -266,13 +266,28 @@ def preserve_best_and_substitute(pairs, snp_position):
         key=lambda pair: abs(((pair[0].tm + pair[1].tm) / 2) - average)
     )
 
-    # If there are no acceptable primer pairs, return None.
-    if not sorted_pairs:
-        return None
-
     # If there are acceptable primer pairs, select the first one from
     # the sorted list since it is closest to the desired temperature.
-    best_pair = sorted_pairs[0]
+    # If there are no acceptable primer pairs, then select the primers
+    # between low and high, closest to average even if they are not
+    # paired with each other. Return None if still no acceptable primer
+    # pair can be found.
+    if sorted_pairs:
+        best_pair = sorted_pairs[0]
+    else:
+        allele1_primers = sorted(
+            [pair[0] for pair in pairs],
+            key=lambda primer: abs(primer.tm - average)
+        )
+        allele2_primers = sorted(
+            [pair[1] for pair in pairs],
+            key=lambda primer: abs(primer.tm - average)
+        )
+
+        if low <= allele1_primers[0].tm <= high and low <= allele2_primers[0].tm <= high:
+            best_pair = (allele1_primers[0], allele2_primers[0])
+        else:
+            return None
 
     # If the flag is on, the bases of the best pair need to be
     # substituted.
