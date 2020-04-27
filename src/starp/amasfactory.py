@@ -8,24 +8,12 @@ from .utils import hamming
 
 # These substitution matrices were created to deal with the
 # combinatorial explosion of possible primer endings given by
-# docs/starp/STARP F primer design[4312].docx
+# docs/starp/STARP F primer design_clarified.docx
 #
 # Exempting the final nucleotide, 'G' and 'C' nucleotides were changed
 # to an 'S' while 'A' and 'T' nucleotides were changed to a 'W'.
 # 'P' represents a [C/G] OR [A/T] snps while 'N' represents all
 # other substitution snps.
-#
-# A single integer means to substitute that index using the function
-# substitute().
-#
-# A 2-tuple means to substitute those two indices.
-#
-# A 4-tuple is more complicated, and is only used when there is an
-# additional SNP. An example describes its purpose best.
-# Let it be ('S', -4, 'W', -3).
-# Then, if the allele has a C or G in the additional SNP position,
-# then substitute the -4th index. If it has an A or T in the
-# additional SNP position, substitute the -3 index.
 
 # S -> G or C
 # W -> A or T
@@ -66,84 +54,508 @@ sub_index_one_snp = {
 
 sub_index_two_snps = {
     frozenset(('C', 'G')) : {
-        'SSPC' : -4, 'SSPG' : -3, 'SSNC' : -4, 'SSNG' : -3,
-        'SWPC' : -4, 'SWPG' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNG' : ('S', -4, 'W', -3),
-        'WSPC' : -4, 'WSPG' : -3, 'WSNC' : ('S', -3, 'W', -4), 'WSNG' : ('S', -3, 'W', -4),
-        'WWPC' : -4, 'WWPG' : -3, 'WWNC' : -4, 'WWNG' : -3,
-        'SPSC' : -4, 'SPSG' : -2, 'SPWC' : -4, 'SPWG' : -2,
-        'SNSC' : -4, 'SNSG' : -2, 'SNWC' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
-        'WPSC' : -4, 'WPSG' : -2, 'WPWC' : -4, 'WPWG' : -2,
-        'WNSC' : ('S', -2, 'W', -4), 'WNSG' : ('S', -2, 'W', -4), 'WNWC' : -4, 'WNWG' : -2,
-        'PSSC' : -3, 'PSSG' : -2, 'PSWC' : -3, 'PSWG' : -2,
-        'PWSC' : -3, 'PWSG' : -2, 'PWWC' : -3, 'PWWG' : -2,
-        'NSSC' : -3, 'NSSG' : -2, 'NSWC' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
-        'NWSC' : ('S', -2, 'W', -3), 'NWSG' : ('S', -2, 'W', -3), 'NWWC' : -3, 'NWWG' : -2},
-    frozenset(('C', 'T')) : {
-        'SSPC' : -4, 'SSPT' : -3, 'SSNC' : -4, 'SSNT' : -3,
-        'SWPC' : -4, 'SWPT' : -3, 'SWNC' : -4, 'SWNT' : -3,
-        'WSPC' : -3, 'WSPT' : -4, 'WSNC' : ('S', -3, 'W', -4), 'WSNT' : ('S', -3, 'W', -4),
-        'WWPC' : -4, 'WWPT' : -3, 'WWNC' : -4, 'WWNT' : -3,
-        'SPSC' : -2, 'SPST' : -4, 'SPWC' : -4, 'SPWT' : -2,
-        'SNSC' : -2, 'SNST' : -4, 'SNWC' : ('S', -4, 'W', -2), 'SNWT' : ('S', -4, 'W', -2),
-        'WPSC' : -2, 'WPST' : -4, 'WPWC' : -2, 'WPWT' : -4,
-        'WNSC' : -2, 'WNST' : -4, 'WNWC' : -2, 'WNWT' : -4,
-        'PSSC' : -2, 'PSST' : -3, 'PSWC' : -3, 'PSWT' : -2,
-        'PWSC' : -2, 'PWST' : -3, 'PWWC' : -2, 'PWWT' : -3,
-        'NSSC' : -2, 'NSST' : -3, 'NSWC' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
-        'NWSC' : -2, 'NWST' : -3, 'NWWC' : -2, 'NWWT' : -3},
-    frozenset(('C', 'A')) : {
-        'SSPC' : -3, 'SSPA' : -4, 'SSNC' : -3, 'SSNA' : -4,
-        'SWPC' : -4, 'SWPA' : -3, 'SWNC' : ('S', -4, 'W', -3), 'SWNA' : ('S', -4, 'W', -3),
-        'WSPC' : -3, 'WSPA' : -4, 'WSNC' : -3, 'WSNA' : -4,
-        'WWPC' : -3, 'WWPA' : -4, 'WWNC' : -3, 'WWNA' : -4,
-        'SPSC' : -2, 'SPSA' : -4, 'SPWC' : -4, 'SPWA' : -2,
-        'SNSC' : -2, 'SNSA' : -4, 'SNWC' : ('S', -4, 'W', -2), 'SNWA' : ('S', -4, 'W', -2),
-        'WPSC' : -2, 'WPSA' : -4, 'WPWC' : -2, 'WPWA' : -4,
-        'WNSC' : -2, 'WNSA' : -4, 'WNWC' : -2, 'WNWA' : -4,
-        'PSSC' : -2, 'PSSA' : -3, 'PSWC' : -3, 'PSWA' : -2,
-        'PWSC' : -2, 'PWSA' : -3, 'PWWC' : -2, 'PWWA' : -3,
-        'NSSC' : -2, 'NSSA' : -3, 'NSWC' : ('S', -3, 'W', -2), 'NSWA' : ('S', -3, 'W', -2),
-        'NWSC' : -2, 'NWSA' : -3, 'NWWC' : -2, 'NWWA' : -3},
-    frozenset(('G', 'T')) : {
-        'SSPT' : -3, 'SSPG' : -4, 'SSNT' : -3, 'SSNG' : -4,
-        'SWPT' : -3, 'SWPG' : -4, 'SWNT' : -3, 'SWNG' : -4,
-        'WSPT' : -4, 'WSPG' : -3, 'WSNT' : ('S', -3, 'W', -4), 'WSNG' : ('S', -3, 'W', -4),
-        'WWPT' : -3, 'WWPG' : -4, 'WWNT' : -3, 'WWNG' : -4,
-        'SPST' : -4, 'SPSG' : -2, 'SPWT' : -2, 'SPWG' : -4,
-        'SNST' : -4, 'SNSG' : -2, 'SNWT' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
-        'WPST' : -4, 'WPSG' : -2, 'WPWT' : -4, 'WPWG' : -2,
-        'WNST' : -4, 'WNSG' : -2, 'WNWT' : -4, 'WNWG' : -2,
-        'PSST' : -3, 'PSSG' : -2, 'PSWT' : -2, 'PSWG' : -3,
-        'PWST' : -3, 'PWSG' : -2, 'PWWT' : -3, 'PWWG' : -2,
-        'NSST' : -3, 'NSSG' : -2, 'NSWT' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
-        'NWST' : -3, 'NWSG' : -2, 'NWWT' : -3, 'NWWG' : -2},
-    frozenset(('G', 'A')) : {
-        'SSPA' : -4, 'SSPG' : -3, 'SSNA' : -4, 'SSNG' : -3,
-        'SWPA' : -3, 'SWPG' : -4, 'SWNA' : ('S', -4, 'W', -3), 'SWNG' : ('S', -4, 'W', -3),
-        'WSPA' : -4, 'WSPG' : -3, 'WSNA' : -4, 'WSNG' : -3,
-        'WWPA' : -4, 'WWPG' : -3, 'WWNA' : -4, 'WWNG' : -3,
-        'SPSA' : -4, 'SPSG' : -2, 'SPWA' : -2, 'SPWG' : -4,
-        'SNSA' : -4, 'SNSG' : -2, 'SNWA' : ('S', -4, 'W', -2), 'SNWG' : ('S', -4, 'W', -2),
-        'WPSA' : -4, 'WPSG' : -2, 'WPWA' : -4, 'WPWG' : -2,
-        'WNSA' : -4, 'WNSG' : -2, 'WNWA' : -4, 'WNWG' : -2,
-        'PSSA' : -3, 'PSSG' : -2, 'PSWA' : -2, 'PSWG' : -3,
-        'PWSA' : -3, 'PWSG' : -2, 'PWWA' : -3, 'PWWG' : -2,
-        'NSSA' : -3, 'NSSG' : -2, 'NSWA' : ('S', -3, 'W', -2), 'NSWG' : ('S', -3, 'W', -2),
-        'NWSA' : -3, 'NWSG' : -2, 'NWWA' : -3, 'NWWG' : -2},
-    frozenset(('A', 'T')) : {
-        'SSPA' : -4, 'SSPT' : -3, 'SSNA' : -4, 'SSNT' : -3,
-        'SWPA' : -4, 'SWPT' : -3, 'SWNA' : ('S', -4, 'W', -3), 'SWNT' : ('S', -4, 'W', -3),
-        'WSPA' : -4, 'WSPT' : -3, 'WSNA' : ('S', -3, 'W', -4), 'WSNT' : ('S', -3, 'W', -4),
-        'WWPA' : -4, 'WWPT' : -3, 'WWNA' : -4, 'WWNT' : -3,
-        'SPSA' : -4, 'SPST' : -2, 'SPWA' : -4, 'SPWT' : -2,
-        'SNSA' : -4, 'SNST' : -2, 'SNWA' : ('S', -4, 'W', -2), 'SNWT' : ('S', -4, 'W', -2),
-        'WPSA' : -4, 'WPST' : -2, 'WPWA' : -4, 'WPWT' : -2,
-        'WNSA' : ('S', -2, 'W', -4), 'WNST' : ('S', -2, 'W', -4), 'WNWA' : -4, 'WNWT' : -2,
-        'PSSA' : -3, 'PSST' : -2, 'PSWA' : -3, 'PSWT' : -2,
-        'PWSA' : -3, 'PWST' : -2, 'PWWA' : -3, 'PWWT' : -2,
-        'NSSA' : -3, 'NSST' : -2, 'NSWA' : ('S', -3, 'W', -2), 'NSWT' : ('S', -3, 'W', -2),
-        'NWSA' : ('S', -2, 'W', -3), 'NWST' : ('S', -2, 'W', -3), 'NWWA' : -3, 'NWWT' : -2}}
 
+        # 1.1 A
+        'WWWPC': {'S': -4, 'W': -4}, 'WWWPG': {'S': -3, 'W': -3}, 
+        'WWSPC': {'S': -5, 'W': -5}, 'WWSPG': {'S': -4, 'W': -4},
+        'WSWPC': {'S': -5, 'W': -5}, 'WSWPG': {'S': -3, 'W': -3},
+        'SWWPC': {'S': -4, 'W': -4}, 'SWWPG': {'S': -3, 'W': -3},
+        'WSSPC': {'S': -4, 'W': -4}, 'WSSPG': {'S': -3, 'W': -3},
+        'SWSPC': {'S': -5, 'W': -5}, 'SWSPG': {'S': -3, 'W': -3},
+        'SSWPC': {'S': -5, 'W': -5}, 'SSWPG': {'S': -4, 'W': -4},
+        'SSSPC': {'S': -4, 'W': -4}, 'SSSPG': {'S': -3, 'W': -3},
+
+        # 1.1 B
+        'WWWNC': {'S': -4, 'W': -4}, 'WWWNG': {'S': -3, 'W': -3}, 
+        'WWSNC': {'S': -3, 'W': -4}, 'WWSNG': {'S': -3, 'W': -4},
+        'WSWNC': {'S': -4, 'W': -3}, 'WSWNG': {'S': -4, 'W': -3},
+        'SWWNC': {'S': -4, 'W': -4}, 'SWWNG': {'S': -3, 'W': -3},
+        'WSSNC': {'S': -4, 'W': -4}, 'WSSNG': {'S': -3, 'W': -3},
+        'SWSNC': {'S': -3, 'W': -4}, 'SWSNG': {'S': -3, 'W': -4},
+        'SSWNC': {'S': -4, 'W': -3}, 'SSWNG': {'S': -4, 'W': -3},
+        'SSSNC': {'S': -4, 'W': -4}, 'SSSNG': {'S': -3, 'W': -3},
+
+        # 1.2 A
+        'WWPWC': {'S': -4, 'W': -4}, 'WWPWG': {'S': -2, 'W': -2}, 
+        'WWPSC': {'S': -5, 'W': -5}, 'WWPSG': {'S': -4, 'W': -4},
+        'WSPWC': {'S': -5, 'W': -5}, 'WSPWG': {'S': -2, 'W': -2},
+        'SWPWC': {'S': -4, 'W': -4}, 'SWPWG': {'S': -2, 'W': -2},
+        'WSPSC': {'S': -4, 'W': -4}, 'WSPSG': {'S': -2, 'W': -2},
+        'SWPSC': {'S': -5, 'W': -5}, 'SWPSG': {'S': -2, 'W': -2},
+        'SSPWC': {'S': -5, 'W': -5}, 'SSPWG': {'S': -4, 'W': -4},
+        'SSPSC': {'S': -4, 'W': -4}, 'SSPSG': {'S': -2, 'W': -2},
+
+        # 1.2 B
+        'WWNWC': {'S': -4, 'W': -4}, 'WWNWG': {'S': -2, 'W': -2}, 
+        'WWNSC': {'S': -2, 'W': -4}, 'WWNSG': {'S': -2, 'W': -4},
+        'WSNWC': {'S': -4, 'W': -2}, 'WSNWG': {'S': -4, 'W': -2},
+        'SWNWC': {'S': -4, 'W': -4}, 'SWNWG': {'S': -2, 'W': -2},
+        'WSNSC': {'S': -4, 'W': -4}, 'WSNSG': {'S': -2, 'W': -2},
+        'SWNSC': {'S': -2, 'W': -4}, 'SWNSG': {'S': -2, 'W': -4},
+        'SSNWC': {'S': -4, 'W': -2}, 'SSNWG': {'S': -4, 'W': -2},
+        'SSNSC': {'S': -4, 'W': -4}, 'SSNSG': {'S': -2, 'W': -2},
+
+        # 1.3 A
+        'WPWWC': {'S': -3, 'W': -3}, 'WPWWG': {'S': -2, 'W': -2}, 
+        'WPWSC': {'S': -5, 'W': -5}, 'WPWSG': {'S': -3, 'W': -3},
+        'WPSWC': {'S': -5, 'W': -5}, 'WPSWG': {'S': -2, 'W': -2},
+        'SPWWC': {'S': -3, 'W': -3}, 'SPWWG': {'S': -2, 'W': -2},
+        'WPSSC': {'S': -3, 'W': -3}, 'WPSSG': {'S': -2, 'W': -2},
+        'SPWSC': {'S': -5, 'W': -5}, 'SPWSG': {'S': -2, 'W': -2},
+        'SPSWC': {'S': -5, 'W': -5}, 'SPSWG': {'S': -3, 'W': -3},
+        'SPSSC': {'S': -3, 'W': -3}, 'SPSSG': {'S': -2, 'W': -2},
+
+        # 1.3 B
+        'WNWWC': {'S': -3, 'W': -3}, 'WNWWG': {'S': -2, 'W': -2},
+        'WNWSC': {'S': -2, 'W': -3}, 'WNWSG': {'S': -2, 'W': -3},
+        'WNSWC': {'S': -3, 'W': -2}, 'WNSWG': {'S': -3, 'W': -2},
+        'SNWWC': {'S': -3, 'W': -3}, 'SNWWG': {'S': -2, 'W': -2},
+        'WNSSC': {'S': -3, 'W': -3}, 'WNSSG': {'S': -2, 'W': -2},
+        'SNWSC': {'S': -2, 'W': -3}, 'SNWSG': {'S': -2, 'W': -3},
+        'SNSWC': {'S': -3, 'W': -2}, 'SNSWG': {'S': -3, 'W': -2},
+        'SNSSC': {'S': -3, 'W': -3}, 'SNSSG': {'S': -2, 'W': -2},
+
+        # 1.4 A
+        'PWWWC': {'S': -3, 'W': -3}, 'PWWWG': {'S': -2, 'W': -2}, 
+        'PWWSC': {'S': -4, 'W': -4}, 'PWWSG': {'S': -3, 'W': -3},
+        'PWSWC': {'S': -4, 'W': -4}, 'PWSWG': {'S': -2, 'W': -2},
+        'PSWWC': {'S': -3, 'W': -3}, 'PSWWG': {'S': -2, 'W': -2},
+        'PWSSC': {'S': -3, 'W': -3}, 'PWSSG': {'S': -2, 'W': -2},
+        'PSWSC': {'S': -4, 'W': -4}, 'PSWSG': {'S': -2, 'W': -2},
+        'PSSWC': {'S': -4, 'W': -4}, 'PSSWG': {'S': -3, 'W': -3},
+        'PSSSC': {'S': -3, 'W': -3}, 'PSSSG': {'S': -2, 'W': -2},
+
+        # 1.4 B
+        'NWWWC': {'S': -3, 'W': -3}, 'NWWWG': {'S': -2, 'W': -2},
+        'NWWSC': {'S': -2, 'W': -3}, 'NWWSG': {'S': -2, 'W': -3},
+        'NWSWC': {'S': -3, 'W': -2}, 'NWSWG': {'S': -3, 'W': -2},
+        'NSWWC': {'S': -3, 'W': -3}, 'NSWWG': {'S': -2, 'W': -2},
+        'NWSSC': {'S': -3, 'W': -3}, 'NWSSG': {'S': -2, 'W': -2},
+        'NSWSC': {'S': -2, 'W': -3}, 'NSWSG': {'S': -2, 'W': -3},
+        'NSSWC': {'S': -3, 'W': -2}, 'NSSWG': {'S': -3, 'W': -2},
+        'NSSSC': {'S': -3, 'W': -3}, 'NSSSG': {'S': -2, 'W': -2},
+
+    },
+
+    frozenset(('C', 'T')) : {
+
+        # 2.1 A
+        'WWWPC': {'S': -4, 'W': -4}, 'WWWPT': {'S': -3, 'W': -3}, 
+        'WWSPC': {'S': -3, 'W': -3}, 'WWSPT': {'S': -4, 'W': -4},
+        'WSWPC': {'S': -4, 'W': -4}, 'WSWPT': {'S': -3, 'W': -3},
+        'SWWPC': {'S': -4, 'W': -4}, 'SWWPT': {'S': -3, 'W': -3},
+        'WSSPC': {'S': -4, 'W': -4}, 'WSSPT': {'S': -3, 'W': -3},
+        'SWSPC': {'S': -3, 'W': -3}, 'SWSPT': {'S': -3, 'W': -3},
+        'SSWPC': {'S': -4, 'W': -4}, 'SSWPT': {'S': -4, 'W': -4},
+        'SSSPC': {'S': -4, 'W': -4}, 'SSSPT': {'S': -3, 'W': -3},
+
+        # 2.1 B
+        'WWWNC': {'S': -4, 'W': -4}, 'WWWNT': {'S': -3, 'W': -3}, 
+        'WWSNC': {'S': -3, 'W': -5}, 'WWSNT': {'S': -3, 'W': -4},
+        'WSWNC': {'S': -4, 'W': -4}, 'WSWNT': {'S': -3, 'W': -3},
+        'SWWNC': {'S': -5, 'W': -4}, 'SWWNT': {'S': -3, 'W': -3},
+        'WSSNC': {'S': -3, 'W': -5}, 'WSSNT': {'S': -3, 'W': -5},
+        'SWSNC': {'S': -3, 'W': -5}, 'SWSNT': {'S': -4, 'W': -4},
+        'SSWNC': {'S': -4, 'W': -4}, 'SSWNT': {'S': -3, 'W': -3},
+        'SSSNC': {'S': -4, 'W': -5}, 'SSSNT': {'S': -4, 'W': -4},
+
+        # 2.2 A
+        'WWPWC': {'S': -2, 'W': -2}, 'WWPWT': {'S': -4, 'W': -4}, 
+        'WWPSC': {'S': -2, 'W': -2}, 'WWPST': {'S': -4, 'W': -4},
+        'WSPWC': {'S': -2, 'W': -2}, 'WSPWT': {'S': -5, 'W': -5},
+        'SWPWC': {'S': -2, 'W': -2}, 'SWPWT': {'S': -4, 'W': -4},
+        'WSPSC': {'S': -2, 'W': -2}, 'WSPST': {'S': -4, 'W': -4},
+        'SWPSC': {'S': -2, 'W': -2}, 'SWPST': {'S': -4, 'W': -4},
+        'SSPWC': {'S': -5, 'W': -5}, 'SSPWT': {'S': -4, 'W': -4},
+        'SSPSC': {'S': -2, 'W': -2}, 'SSPST': {'S': -4, 'W': -4},
+
+        # 2.2 B
+        'WWNWC': {'S': -2, 'W': -2}, 'WWNWT': {'S': -4, 'W': -4}, 
+        'WWNSC': {'S': -2, 'W': -5}, 'WWNST': {'S': -4, 'W': -4},
+        'WSNWC': {'S': -4, 'W': -2}, 'WSNWT': {'S': -5, 'W': -5},
+        'SWNWC': {'S': -5, 'W': -2}, 'SWNWT': {'S': -4, 'W': -4},
+        'WSNSC': {'S': -2, 'W': -2}, 'WSNST': {'S': -4, 'W': -5},
+        'SWNSC': {'S': -2, 'W': -2}, 'SWNST': {'S': -5, 'W': -4},
+        'SSNWC': {'S': -5, 'W': -5}, 'SSNWT': {'S': -4, 'W': -4},
+        'SSNSC': {'S': -2, 'W': -2}, 'SSNST': {'S': -4, 'W': -4},
+
+        # 2.3 A
+        'WPWWC': {'S': -2, 'W': -2}, 'WPWWT': {'S': -3, 'W': -3}, 
+        'WPWSC': {'S': -2, 'W': -2}, 'WPWST': {'S': -3, 'W': -3},
+        'WPSWC': {'S': -2, 'W': -2}, 'WPSWT': {'S': -5, 'W': -5},
+        'SPWWC': {'S': -2, 'W': -2}, 'SPWWT': {'S': -3, 'W': -3},
+        'WPSSC': {'S': -2, 'W': -2}, 'WPSST': {'S': -3, 'W': -3},
+        'SPWSC': {'S': -2, 'W': -2}, 'SPWST': {'S': -3, 'W': -3},
+        'SPSWC': {'S': -5, 'W': -5}, 'SPSWT': {'S': -3, 'W': -3},
+        'SPSSC': {'S': -2, 'W': -2}, 'SPSST': {'S': -3, 'W': -3},
+
+        # 2.3 B
+        'WNWWC': {'S': -2, 'W': -2}, 'WNWWT': {'S': -3, 'W': -3},
+        'WNWSC': {'S': -2, 'W': -5}, 'WNWST': {'S': -3, 'W': -3},
+        'WNSWC': {'S': -3, 'W': -2}, 'WNSWT': {'S': -5, 'W': -5},
+        'SNWWC': {'S': -5, 'W': -2}, 'SNWWT': {'S': -3, 'W': -3},
+        'WNSSC': {'S': -2, 'W': -2}, 'WNSST': {'S': -3, 'W': -5},
+        'SNWSC': {'S': -2, 'W': -2}, 'SNWST': {'S': -5, 'W': -3},
+        'SNSWC': {'S': -5, 'W': -5}, 'SNSWT': {'S': -3, 'W': -3},
+        'SNSSC': {'S': -2, 'W': -2}, 'SNSST': {'S': -3, 'W': -3},
+
+        # 2.4 A
+        'PWWWC': {'S': -2, 'W': -2}, 'PWWWT': {'S': -3, 'W': -3},
+        'PWWSC': {'S': -2, 'W': -2}, 'PWWST': {'S': -3, 'W': -3},
+        'PWSWC': {'S': -2, 'W': -2}, 'PWSWT': {'S': -4, 'W': -4},
+        'PSWWC': {'S': -2, 'W': -2}, 'PSWWT': {'S': -3, 'W': -3},
+        'PWSSC': {'S': -2, 'W': -2}, 'PWSST': {'S': -3, 'W': -3},
+        'PSWSC': {'S': -2, 'W': -2}, 'PSWST': {'S': -3, 'W': -3},
+        'PSSWC': {'S': -3, 'W': -3}, 'PSSWT': {'S': -3, 'W': -3},
+        'PSSSC': {'S': -2, 'W': -2}, 'PSSST': {'S': -3, 'W': -3},
+
+        # 2.4 B
+        'NWWWC': {'S': -2, 'W': -2}, 'NWWWT': {'S': -3, 'W': -3},
+        'NWWSC': {'S': -2, 'W': -4}, 'NWWST': {'S': -3, 'W': -3},
+        'NWSWC': {'S': -3, 'W': -2}, 'NWSWT': {'S': -4, 'W': -4},
+        'NSWWC': {'S': -4, 'W': -2}, 'NSWWT': {'S': -3, 'W': -3},
+        'NWSSC': {'S': -2, 'W': -2}, 'NWSST': {'S': -3, 'W': -4},
+        'NSWSC': {'S': -2, 'W': -2}, 'NSWST': {'S': -4, 'W': -3},
+        'NSSWC': {'S': -4, 'W': -4}, 'NSSWT': {'S': -3, 'W': -3},
+        'NSSSC': {'S': -2, 'W': -2}, 'NSSST': {'S': -3, 'W': -3},
+
+    },
+        
+    frozenset(('C', 'A')) : {
+
+        # 3.1 A
+        'WWWPC': {'S': -3, 'W': -3}, 'WWWPA': {'S': -4, 'W': -4}, 
+        'WWSPC': {'S': -3, 'W': -3}, 'WWSPA': {'S': -4, 'W': -4},
+        'WSWPC': {'S': -4, 'W': -4}, 'WSWPA': {'S': -3, 'W': -3},
+        'SWWPC': {'S': -3, 'W': -3}, 'SWWPA': {'S': -4, 'W': -4},
+        'WSSPC': {'S': -3, 'W': -3}, 'WSSPA': {'S': -4, 'W': -4},
+        'SWSPC': {'S': -3, 'W': -3}, 'SWSPA': {'S': -4, 'W': -4},
+        'SSWPC': {'S': -4, 'W': -4}, 'SSWPA': {'S': -3, 'W': -3},
+        'SSSPC': {'S': -3, 'W': -3}, 'SSSPA': {'S': -4, 'W': -4},
+
+        # 3.1 B
+        'WWWNC': {'S': -3, 'W': -3}, 'WWWNA': {'S': -4, 'W': -4}, 
+        'WWSNC': {'S': -3, 'W': -4}, 'WWSNA': {'S': -5, 'W': -4},
+        'WSWNC': {'S': -4, 'W': -3}, 'WSWNA': {'S': -5, 'W': -3},
+        'SWWNC': {'S': -5, 'W': -3}, 'SWWNA': {'S': -4, 'W': -3},
+        'WSSNC': {'S': -3, 'W': -3}, 'WSSNA': {'S': -4, 'W': -5},
+        'SWSNC': {'S': -3, 'W': -3}, 'SWSNA': {'S': -5, 'W': -4},
+        'SSWNC': {'S': -4, 'W': -4}, 'SSWNA': {'S': -5, 'W': -3},
+        'SSSNC': {'S': -3, 'W': -3}, 'SSSNA': {'S': -4, 'W': -4},
+
+        # 3.2 A
+        'WWPWC': {'S': -2, 'W': -2}, 'WWPWA': {'S': -4, 'W': -4}, 
+        'WWPSC': {'S': -2, 'W': -2}, 'WWPSA': {'S': -4, 'W': -4},
+        'WSPWC': {'S': -2, 'W': -2}, 'WSPWA': {'S': -5, 'W': -5},
+        'SWPWC': {'S': -2, 'W': -2}, 'SWPWA': {'S': -4, 'W': -4},
+        'WSPSC': {'S': -2, 'W': -2}, 'WSPSA': {'S': -4, 'W': -4},
+        'SWPSC': {'S': -2, 'W': -2}, 'SWPSA': {'S': -4, 'W': -4},
+        'SSPWC': {'S': -4, 'W': -4}, 'SSPWA': {'S': -5, 'W': -5},
+        'SSPSC': {'S': -2, 'W': -2}, 'SSPSA': {'S': -4, 'W': -4},
+
+        # 3.2 B
+        'WWNWC': {'S': -2, 'W': -2}, 'WWNWA': {'S': -4, 'W': -4}, 
+        'WWNSC': {'S': -2, 'W': -4}, 'WWNSA': {'S': -5, 'W': -4},
+        'WSNWC': {'S': -4, 'W': -2}, 'WSNWA': {'S': -5, 'W': -5},
+        'SWNWC': {'S': -5, 'W': -2}, 'SWNWA': {'S': -4, 'W': -4},
+        'WSNSC': {'S': -2, 'W': -2}, 'WSNSA': {'S': -4, 'W': -5},
+        'SWNSC': {'S': -2, 'W': -2}, 'SWNSA': {'S': -5, 'W': -4},
+        'SSNWC': {'S': -4, 'W': -4}, 'SSNWA': {'S': -5, 'W': -5},
+        'SSNSC': {'S': -2, 'W': -2}, 'SSNSA': {'S': -4, 'W': -4},
+
+        # 3.3 A
+        'WPWWC': {'S': -2, 'W': -2}, 'WPWWA': {'S': -3, 'W': -3}, 
+        'WPWSC': {'S': -2, 'W': -2}, 'WPWSA': {'S': -3, 'W': -3},
+        'WPSWC': {'S': -2, 'W': -2}, 'WPSWA': {'S': -5, 'W': -5},
+        'SPWWC': {'S': -2, 'W': -2}, 'SPWWA': {'S': -3, 'W': -3},
+        'WPSSC': {'S': -2, 'W': -2}, 'WPSSA': {'S': -3, 'W': -3},
+        'SPWSC': {'S': -2, 'W': -2}, 'SPWSA': {'S': -3, 'W': -3},
+        'SPSWC': {'S': -3, 'W': -3}, 'SPSWA': {'S': -5, 'W': -5},
+        'SPSSC': {'S': -2, 'W': -2}, 'SPSSA': {'S': -3, 'W': -3},
+
+        # 3.3 B
+        'WNWWC': {'S': -2, 'W': -2}, 'WNWWA': {'S': -3, 'W': -3},
+        'WNWSC': {'S': -2, 'W': -3}, 'WNWSA': {'S': -5, 'W': -3},
+        'WNSWC': {'S': -3, 'W': -2}, 'WNSWA': {'S': -5, 'W': -5},
+        'SNWWC': {'S': -5, 'W': -2}, 'SNWWA': {'S': -3, 'W': -3},
+        'WNSSC': {'S': -2, 'W': -2}, 'WNSSA': {'S': -3, 'W': -5},
+        'SNWSC': {'S': -2, 'W': -2}, 'SNWSA': {'S': -5, 'W': -3},
+        'SNSWC': {'S': -3, 'W': -3}, 'SNSWA': {'S': -5, 'W': -5},
+        'SNSSC': {'S': -2, 'W': -2}, 'SNSSA': {'S': -3, 'W': -3},
+
+        # 3.4 A
+        'PWWWC': {'S': -2, 'W': -2}, 'PWWWA': {'S': -3, 'W': -3},
+        'PWWSC': {'S': -2, 'W': -2}, 'PWWSA': {'S': -3, 'W': -3},
+        'PWSWC': {'S': -2, 'W': -2}, 'PWSWA': {'S': -4, 'W': -4},
+        'PSWWC': {'S': -2, 'W': -2}, 'PSWWA': {'S': -3, 'W': -3},
+        'PWSSC': {'S': -2, 'W': -2}, 'PWSSA': {'S': -3, 'W': -3},
+        'PSWSC': {'S': -2, 'W': -2}, 'PSWSA': {'S': -3, 'W': -3},
+        'PSSWC': {'S': -3, 'W': -3}, 'PSSWA': {'S': -4, 'W': -4},
+        'PSSSC': {'S': -2, 'W': -2}, 'PSSSA': {'S': -3, 'W': -3},
+
+        # 3.4 B
+        'NWWWC': {'S': -2, 'W': -2}, 'NWWWA': {'S': -3, 'W': -3},
+        'NWWSC': {'S': -2, 'W': -3}, 'NWWSA': {'S': -4, 'W': -3},
+        'NWSWC': {'S': -3, 'W': -2}, 'NWSWA': {'S': -4, 'W': -4},
+        'NSWWC': {'S': -4, 'W': -2}, 'NSWWA': {'S': -3, 'W': -3},
+        'NWSSC': {'S': -2, 'W': -2}, 'NWSSA': {'S': -3, 'W': -4},
+        'NSWSC': {'S': -2, 'W': -2}, 'NSWSA': {'S': -4, 'W': -3},
+        'NSSWC': {'S': -3, 'W': -3}, 'NSSWA': {'S': -4, 'W': -4},
+        'NSSSC': {'S': -2, 'W': -2}, 'NSSSA': {'S': -3, 'W': -3},
+
+    },
+
+    frozenset(('G', 'T')) : {
+
+        # 4.1 A
+        'WWWPG': {'S': -4, 'W': -4}, 'WWWPT': {'S': -3, 'W': -3}, 
+        'WWSPG': {'S': -3, 'W': -3}, 'WWSPT': {'S': -4, 'W': -4},
+        'WSWPG': {'S': -4, 'W': -4}, 'WSWPT': {'S': -3, 'W': -3},
+        'SWWPG': {'S': -4, 'W': -4}, 'SWWPT': {'S': -3, 'W': -3},
+        'WSSPG': {'S': -4, 'W': -4}, 'WSSPT': {'S': -3, 'W': -3},
+        'SWSPG': {'S': -3, 'W': -3}, 'SWSPT': {'S': -4, 'W': -4},
+        'SSWPG': {'S': -4, 'W': -4}, 'SSWPT': {'S': -4, 'W': -4},
+        'SSSPG': {'S': -4, 'W': -4}, 'SSSPT': {'S': -3, 'W': -3},
+
+        # 4.1 B
+        'WWWNG': {'S': -4, 'W': -4}, 'WWWNT': {'S': -3, 'W': -3}, 
+        'WWSNG': {'S': -3, 'W': -5}, 'WWSNT': {'S': -4, 'W': -4},
+        'WSWNG': {'S': -4, 'W': -5}, 'WSWNT': {'S': -3, 'W': -3},
+        'SWWNG': {'S': -5, 'W': -4}, 'SWWNT': {'S': -3, 'W': -3},
+        'WSSNG': {'S': -3, 'W': -4}, 'WSSNT': {'S': -3, 'W': -5},
+        'SWSNG': {'S': -3, 'W': -5}, 'SWSNT': {'S': -3, 'W': -4},
+        'SSWNG': {'S': -4, 'W': -5}, 'SSWNT': {'S': -4, 'W': -3},
+        'SSSNG': {'S': -4, 'W': -4}, 'SSSNT': {'S': -3, 'W': -3},
+
+        # 4.2 A
+        'WWPWG': {'S': -2, 'W': -2}, 'WWPWT': {'S': -4, 'W': -4}, 
+        'WWPSG': {'S': -2, 'W': -2}, 'WWPST': {'S': -4, 'W': -4},
+        'WSPWG': {'S': -2, 'W': -2}, 'WSPWT': {'S': -5, 'W': -5},
+        'SWPWG': {'S': -2, 'W': -2}, 'SWPWT': {'S': -4, 'W': -4},
+        'WSPSG': {'S': -2, 'W': -2}, 'WSPST': {'S': -4, 'W': -4},
+        'SWPSG': {'S': -2, 'W': -2}, 'SWPST': {'S': -4, 'W': -4},
+        'SSPWG': {'S': -5, 'W': -5}, 'SSPWT': {'S': -4, 'W': -4},
+        'SSPSG': {'S': -2, 'W': -2}, 'SSPST': {'S': -4, 'W': -4},
+
+        # 4.2 B
+        'WWNWG': {'S': -2, 'W': -2}, 'WWNWT': {'S': -4, 'W': -4}, 
+        'WWNSG': {'S': -2, 'W': -5}, 'WWNST': {'S': -4, 'W': -4},
+        'WSNWG': {'S': -4, 'W': -2}, 'WSNWT': {'S': -5, 'W': -5},
+        'SWNWG': {'S': -5, 'W': -2}, 'SWNWT': {'S': -4, 'W': -4},
+        'WSNSG': {'S': -2, 'W': -2}, 'WSNST': {'S': -4, 'W': -5},
+        'SWNSG': {'S': -2, 'W': -2}, 'SWNST': {'S': -5, 'W': -4},
+        'SSNWG': {'S': -5, 'W': -5}, 'SSNWT': {'S': -4, 'W': -4},
+        'SSNSG': {'S': -2, 'W': -2}, 'SSNST': {'S': -4, 'W': -4},
+
+        # 4.3 A
+        'WPWWG': {'S': -2, 'W': -2}, 'WPWWT': {'S': -3, 'W': -3}, 
+        'WPWSG': {'S': -2, 'W': -2}, 'WPWST': {'S': -3, 'W': -3},
+        'WPSWG': {'S': -2, 'W': -2}, 'WPSWT': {'S': -5, 'W': -5},
+        'SPWWG': {'S': -2, 'W': -2}, 'SPWWT': {'S': -3, 'W': -3},
+        'WPSSG': {'S': -2, 'W': -2}, 'WPSST': {'S': -3, 'W': -3},
+        'SPWSG': {'S': -2, 'W': -2}, 'SPWST': {'S': -3, 'W': -3},
+        'SPSWG': {'S': -5, 'W': -5}, 'SPSWT': {'S': -3, 'W': -3},
+        'SPSSG': {'S': -2, 'W': -2}, 'SPSST': {'S': -3, 'W': -3},
+
+        # 4.3 B
+        'WNWWG': {'S': -2, 'W': -2}, 'WNWWT': {'S': -3, 'W': -3},
+        'WNWSG': {'S': -2, 'W': -5}, 'WNWST': {'S': -3, 'W': -3},
+        'WNSWG': {'S': -3, 'W': -2}, 'WNSWT': {'S': -5, 'W': -5},
+        'SNWWG': {'S': -5, 'W': -2}, 'SNWWT': {'S': -3, 'W': -3},
+        'WNSSG': {'S': -2, 'W': -2}, 'WNSST': {'S': -3, 'W': -5},
+        'SNWSG': {'S': -2, 'W': -2}, 'SNWST': {'S': -5, 'W': -3},
+        'SNSWG': {'S': -5, 'W': -5}, 'SNSWT': {'S': -3, 'W': -3},
+        'SNSSG': {'S': -2, 'W': -2}, 'SNSST': {'S': -3, 'W': -3},
+
+        # 4.4 A
+        'PWWWG': {'S': -2, 'W': -2}, 'PWWWT': {'S': -3, 'W': -3},
+        'PWWSG': {'S': -2, 'W': -2}, 'PWWST': {'S': -3, 'W': -3},
+        'PWSWG': {'S': -2, 'W': -2}, 'PWSWT': {'S': -4, 'W': -4},
+        'PSWWG': {'S': -2, 'W': -2}, 'PSWWT': {'S': -3, 'W': -3},
+        'PWSSG': {'S': -2, 'W': -2}, 'PWSST': {'S': -3, 'W': -3},
+        'PSWSG': {'S': -2, 'W': -2}, 'PSWST': {'S': -3, 'W': -3},
+        'PSSWG': {'S': -4, 'W': -4}, 'PSSWT': {'S': -3, 'W': -3},
+        'PSSSG': {'S': -2, 'W': -2}, 'PSSST': {'S': -3, 'W': -3},
+
+        # 4.4 B
+        'NWWWG': {'S': -2, 'W': -2}, 'NWWWT': {'S': -3, 'W': -3},
+        'NWWSG': {'S': -2, 'W': -4}, 'NWWST': {'S': -3, 'W': -3},
+        'NWSWG': {'S': -3, 'W': -2}, 'NWSWT': {'S': -4, 'W': -4},
+        'NSWWG': {'S': -4, 'W': -2}, 'NSWWT': {'S': -3, 'W': -3},
+        'NWSSG': {'S': -2, 'W': -2}, 'NWSST': {'S': -3, 'W': -4},
+        'NSWSG': {'S': -2, 'W': -2}, 'NSWST': {'S': -4, 'W': -3},
+        'NSSWG': {'S': -4, 'W': -4}, 'NSSWT': {'S': -3, 'W': -3},
+        'NSSSG': {'S': -2, 'W': -2}, 'NSSST': {'S': -3, 'W': -3},
+
+    },
+
+    frozenset(('G', 'A')) : {
+
+        # 5.1 A
+        'WWWPG': {'S': -3, 'W': -3}, 'WWWPA': {'S': -4, 'W': -4}, 
+        'WWSPG': {'S': -3, 'W': -3}, 'WWSPA': {'S': -4, 'W': -4},
+        'WSWPG': {'S': -4, 'W': -4}, 'WSWPA': {'S': -3, 'W': -3},
+        'SWWPG': {'S': -3, 'W': -3}, 'SWWPA': {'S': -4, 'W': -4},
+        'WSSPG': {'S': -3, 'W': -3}, 'WSSPA': {'S': -4, 'W': -4},
+        'SWSPG': {'S': -3, 'W': -3}, 'SWSPA': {'S': -4, 'W': -4},
+        'SSWPG': {'S': -4, 'W': -4}, 'SSWPA': {'S': -3, 'W': -3},
+        'SSSPG': {'S': -3, 'W': -3}, 'SSSPA': {'S': -4, 'W': -4},
+
+        # 5.1 B
+        'WWWNG': {'S': -3, 'W': -3}, 'WWWNA': {'S': -4, 'W': -4}, 
+        'WWSNG': {'S': -3, 'W': -4}, 'WWSNA': {'S': -5, 'W': -4},
+        'WSWNG': {'S': -4, 'W': -3}, 'WSWNA': {'S': -5, 'W': -3},
+        'SWWNG': {'S': -5, 'W': -3}, 'SWWNA': {'S': -4, 'W': -3},
+        'WSSNG': {'S': -3, 'W': -3}, 'WSSNA': {'S': -4, 'W': -5},
+        'SWSNG': {'S': -3, 'W': -3}, 'SWSNA': {'S': -5, 'W': -4},
+        'SSWNG': {'S': -4, 'W': -4}, 'SSWNA': {'S': -5, 'W': -3},
+        'SSSNG': {'S': -3, 'W': -3}, 'SSSNA': {'S': -4, 'W': -4},
+
+        # 5.2 A
+        'WWPWG': {'S': -2, 'W': -2}, 'WWPWA': {'S': -4, 'W': -4}, 
+        'WWPSG': {'S': -2, 'W': -2}, 'WWPSA': {'S': -4, 'W': -4},
+        'WSPWG': {'S': -2, 'W': -2}, 'WSPWA': {'S': -5, 'W': -5},
+        'SWPWG': {'S': -2, 'W': -2}, 'SWPWA': {'S': -4, 'W': -4},
+        'WSPSG': {'S': -2, 'W': -2}, 'WSPSA': {'S': -4, 'W': -4},
+        'SWPSG': {'S': -2, 'W': -2}, 'SWPSA': {'S': -4, 'W': -4},
+        'SSPWG': {'S': -4, 'W': -4}, 'SSPWA': {'S': -5, 'W': -5},
+        'SSPSG': {'S': -2, 'W': -2}, 'SSPSA': {'S': -4, 'W': -4},
+
+        # 5.2 B
+        'WWNWG': {'S': -2, 'W': -2}, 'WWNWA': {'S': -4, 'W': -4}, 
+        'WWNSG': {'S': -2, 'W': -4}, 'WWNSA': {'S': -5, 'W': -4},
+        'WSNWG': {'S': -4, 'W': -2}, 'WSNWA': {'S': -5, 'W': -5},
+        'SWNWG': {'S': -5, 'W': -2}, 'SWNWA': {'S': -4, 'W': -4},
+        'WSNSG': {'S': -2, 'W': -2}, 'WSNSA': {'S': -4, 'W': -5},
+        'SWNSG': {'S': -2, 'W': -2}, 'SWNSA': {'S': -5, 'W': -4},
+        'SSNWG': {'S': -4, 'W': -4}, 'SSNWA': {'S': -5, 'W': -5},
+        'SSNSG': {'S': -2, 'W': -2}, 'SSNSA': {'S': -4, 'W': -4},
+
+        # 5.3 A
+        'WPWWG': {'S': -2, 'W': -2}, 'WPWWA': {'S': -3, 'W': -3}, 
+        'WPWSG': {'S': -2, 'W': -2}, 'WPWSA': {'S': -3, 'W': -3},
+        'WPSWG': {'S': -2, 'W': -2}, 'WPSWA': {'S': -5, 'W': -5},
+        'SPWWG': {'S': -2, 'W': -2}, 'SPWWA': {'S': -3, 'W': -3},
+        'WPSSG': {'S': -2, 'W': -2}, 'WPSSA': {'S': -3, 'W': -3},
+        'SPWSG': {'S': -2, 'W': -2}, 'SPWSA': {'S': -3, 'W': -3},
+        'SPSWG': {'S': -3, 'W': -3}, 'SPSWA': {'S': -5, 'W': -5},
+        'SPSSG': {'S': -2, 'W': -2}, 'SPSSA': {'S': -3, 'W': -3},
+
+        # 5.3 B
+        'WNWWG': {'S': -2, 'W': -2}, 'WNWWA': {'S': -3, 'W': -3},
+        'WNWSG': {'S': -2, 'W': -3}, 'WNWSA': {'S': -5, 'W': -3},
+        'WNSWG': {'S': -3, 'W': -2}, 'WNSWA': {'S': -5, 'W': -5},
+        'SNWWG': {'S': -5, 'W': -2}, 'SNWWA': {'S': -3, 'W': -3},
+        'WNSSG': {'S': -2, 'W': -2}, 'WNSSA': {'S': -3, 'W': -5},
+        'SNWSG': {'S': -2, 'W': -2}, 'SNWSA': {'S': -5, 'W': -3},
+        'SNSWG': {'S': -3, 'W': -3}, 'SNSWA': {'S': -5, 'W': -5},
+        'SNSSG': {'S': -2, 'W': -2}, 'SNSSA': {'S': -3, 'W': -3},
+
+        # 5.4 A
+        'PWWWG': {'S': -2, 'W': -2}, 'PWWWA': {'S': -3, 'W': -3},
+        'PWWSG': {'S': -2, 'W': -2}, 'PWWSA': {'S': -3, 'W': -3},
+        'PWSWG': {'S': -2, 'W': -2}, 'PWSWA': {'S': -4, 'W': -4},
+        'PSWWG': {'S': -2, 'W': -2}, 'PSWWA': {'S': -3, 'W': -3},
+        'PWSSG': {'S': -2, 'W': -2}, 'PWSSA': {'S': -3, 'W': -3},
+        'PSWSG': {'S': -2, 'W': -2}, 'PSWSA': {'S': -3, 'W': -3},
+        'PSSWG': {'S': -3, 'W': -3}, 'PSSWA': {'S': -4, 'W': -4},
+        'PSSSG': {'S': -2, 'W': -2}, 'PSSSA': {'S': -3, 'W': -3},
+
+        # 5.4 B
+        'NWWWG': {'S': -2, 'W': -2}, 'NWWWA': {'S': -3, 'W': -3},
+        'NWWSG': {'S': -2, 'W': -3}, 'NWWSA': {'S': -4, 'W': -3},
+        'NWSWG': {'S': -3, 'W': -2}, 'NWSWA': {'S': -4, 'W': -4},
+        'NSWWG': {'S': -4, 'W': -2}, 'NSWWA': {'S': -3, 'W': -3},
+        'NWSSG': {'S': -2, 'W': -2}, 'NWSSA': {'S': -3, 'W': -4},
+        'NSWSG': {'S': -2, 'W': -2}, 'NSWSA': {'S': -4, 'W': -3},
+        'NSSWG': {'S': -3, 'W': -3}, 'NSSWA': {'S': -4, 'W': -4},
+        'NSSSG': {'S': -2, 'W': -2}, 'NSSSA': {'S': -3, 'W': -3},
+
+    },
+
+    frozenset(('A', 'T')) : {
+
+        # 6.1 A
+        'WWWPT': {'S': -3, 'W': -3}, 'WWWPA': {'S': -4, 'W': -4}, 
+        'WWSPT': {'S': -4, 'W': -4}, 'WWSPA': {'S': -5, 'W': -5},
+        'WSWPT': {'S': -3, 'W': -3}, 'WSWPA': {'S': -5, 'W': -5},
+        'SWWPT': {'S': -3, 'W': -3}, 'SWWPA': {'S': -4, 'W': -4},
+        'WSSPT': {'S': -3, 'W': -3}, 'WSSPA': {'S': -4, 'W': -4},
+        'SWSPT': {'S': -3, 'W': -3}, 'SWSPA': {'S': -5, 'W': -5},
+        'SSWPT': {'S': -4, 'W': -4}, 'SSWPA': {'S': -5, 'W': -5},
+        'SSSPT': {'S': -3, 'W': -3}, 'SSSPA': {'S': -4, 'W': -4},
+
+        # 6.1 B
+        'WWWNT': {'S': -3, 'W': -3}, 'WWWNA': {'S': -4, 'W': -4}, 
+        'WWSNT': {'S': -3, 'W': -4}, 'WWSNA': {'S': -3, 'W': -4},
+        'WSWNT': {'S': -4, 'W': -3}, 'WSWNA': {'S': -4, 'W': -3},
+        'SWWNT': {'S': -3, 'W': -3}, 'SWWNA': {'S': -4, 'W': -4},
+        'WSSNT': {'S': -3, 'W': -3}, 'WSSNA': {'S': -4, 'W': -4},
+        'SWSNT': {'S': -3, 'W': -4}, 'SWSNA': {'S': -3, 'W': -4},
+        'SSWNT': {'S': -4, 'W': -3}, 'SSWNA': {'S': -4, 'W': -3},
+        'SSSNT': {'S': -3, 'W': -3}, 'SSSNA': {'S': -4, 'W': -4},
+
+        # 6.2 A
+        'WWPWT': {'S': -4, 'W': -4}, 'WWPWA': {'S': -5, 'W': -5}, 
+        'WWPST': {'S': -4, 'W': -4}, 'WWPSA': {'S': -5, 'W': -5},
+        'WSPWT': {'S': -2, 'W': -2}, 'WSPWA': {'S': -5, 'W': -5},
+        'SWPWT': {'S': -2, 'W': -2}, 'SWPWA': {'S': -4, 'W': -4},
+        'WSPST': {'S': -2, 'W': -2}, 'WSPSA': {'S': -4, 'W': -4},
+        'SWPST': {'S': -2, 'W': -2}, 'SWPSA': {'S': -5, 'W': -5},
+        'SSPWT': {'S': -4, 'W': -4}, 'SSPWA': {'S': -5, 'W': -5},
+        'SSPST': {'S': -4, 'W': -4}, 'SSPSA': {'S': -5, 'W': -5},
+
+        # 6.2 B
+        'WWNWT': {'S': -4, 'W': -4}, 'WWNWA': {'S': -5, 'W': -5}, 
+        'WWNST': {'S': -4, 'W': -4}, 'WWNSA': {'S': -5, 'W': -5},
+        'WSNWT': {'S': -4, 'W': -5}, 'WSNWA': {'S': -4, 'W': -5},
+        'SWNWT': {'S': -5, 'W': -4}, 'SWNWA': {'S': -5, 'W': -4},
+        'WSNST': {'S': -4, 'W': -5}, 'WSNSA': {'S': -4, 'W': -5},
+        'SWNST': {'S': -5, 'W': -4}, 'SWNSA': {'S': -5, 'W': -4},
+        'SSNWT': {'S': -4, 'W': -4}, 'SSNWA': {'S': -5, 'W': -5},
+        'SSNST': {'S': -4, 'W': -4}, 'SSNSA': {'S': -5, 'W': -5},
+
+        # 6.3 A
+        'WPWWT': {'S': -3, 'W': -3}, 'WPWWA': {'S': -5, 'W': -5}, 
+        'WPWST': {'S': -3, 'W': -3}, 'WPWSA': {'S': -5, 'W': -5},
+        'WPSWT': {'S': -2, 'W': -2}, 'WPSWA': {'S': -5, 'W': -5},
+        'SPWWT': {'S': -2, 'W': -2}, 'SPWWA': {'S': -3, 'W': -3},
+        'WPSST': {'S': -2, 'W': -2}, 'WPSSA': {'S': -3, 'W': -3},
+        'SPWST': {'S': -2, 'W': -2}, 'SPWSA': {'S': -5, 'W': -5},
+        'SPSWT': {'S': -3, 'W': -3}, 'SPSWA': {'S': -5, 'W': -5},
+        'SPSST': {'S': -3, 'W': -3}, 'SPSSA': {'S': -5, 'W': -5},
+
+        # 6.3 B
+        'WNWWT': {'S': -3, 'W': -3}, 'WNWWA': {'S': -5, 'W': -5},
+        'WNWST': {'S': -3, 'W': -3}, 'WNWSA': {'S': -5, 'W': -5},
+        'WNSWT': {'S': -3, 'W': -5}, 'WNSWA': {'S': -3, 'W': -5},
+        'SNWWT': {'S': -5, 'W': -3}, 'SNWWA': {'S': -5, 'W': -3},
+        'WNSST': {'S': -3, 'W': -5}, 'WNSSA': {'S': -3, 'W': -5},
+        'SNWST': {'S': -5, 'W': -3}, 'SNWSA': {'S': -5, 'W': -3},
+        'SNSWT': {'S': -3, 'W': -3}, 'SNSWA': {'S': -5, 'W': -5},
+        'SNSST': {'S': -3, 'W': -3}, 'SNSSA': {'S': -5, 'W': -5},
+
+        # 6.4 A
+        'PWWWT': {'S': -3, 'W': -3}, 'PWWWA': {'S': -4, 'W': -4},
+        'PWWST': {'S': -3, 'W': -3}, 'PWWSA': {'S': -4, 'W': -4},
+        'PWSWT': {'S': -2, 'W': -2}, 'PWSWA': {'S': -4, 'W': -4},
+        'PSWWT': {'S': -2, 'W': -2}, 'PSWWA': {'S': -3, 'W': -3},
+        'PWSST': {'S': -2, 'W': -2}, 'PWSSA': {'S': -3, 'W': -3},
+        'PSWST': {'S': -2, 'W': -2}, 'PSWSA': {'S': -4, 'W': -4},
+        'PSSWT': {'S': -3, 'W': -3}, 'PSSWA': {'S': -4, 'W': -4},
+        'PSSST': {'S': -3, 'W': -3}, 'PSSSA': {'S': -4, 'W': -4},
+
+        # 6.4 B
+        'NWWWT': {'S': -3, 'W': -3}, 'NWWWA': {'S': -4, 'W': -4},
+        'NWWST': {'S': -3, 'W': -3}, 'NWWSA': {'S': -4, 'W': -4},
+        'NWSWT': {'S': -3, 'W': -4}, 'NWSWA': {'S': -3, 'W': -4},
+        'NSWWT': {'S': -4, 'W': -3}, 'NSWWA': {'S': -4, 'W': -3},
+        'NWSST': {'S': -3, 'W': -4}, 'NWSSA': {'S': -3, 'W': -4},
+        'NSWST': {'S': -4, 'W': -3}, 'NSWSA': {'S': -4, 'W': -3},
+        'NSSWT': {'S': -3, 'W': -3}, 'NSSWA': {'S': -4, 'W': -4},
+        'NSSST': {'S': -3, 'W': -3}, 'NSSSA': {'S': -4, 'W': -4},
+
+        }}
 
 def differences_at_end(pair, snp_position):
     """
@@ -178,7 +590,7 @@ def differences_at_end(pair, snp_position):
 def preserve_best_and_substitute(pairs, snp_position):
     """
     Corresponds to One SNP module, Two SNP module, and Three SNP module
-    from STARP F primer design[4312].docx
+    from STARP F primer design_clarified.docx
 
     (1) Find the number of SNPs at the end of the shortest primer pair.
         This value influences the cutoff used when checking if the total
@@ -552,7 +964,7 @@ def generate_amas_downstream(allele, allele_num, pos, minimum, maximum):
 def substitute_bases(pair, snp_position='last'):
     """
     Substitutes bases according to Dr. Long's instructions.
-    See docs/STARP F primer design[4312].docx, pages 2-14.
+    See 'docs/starp/STARP F primer design_clarified.docx'.
 
     Args:
         pair: A 2-tuple of Sequence objects or strings.
@@ -566,8 +978,8 @@ def substitute_bases(pair, snp_position='last'):
             or (type(pair[0]) == str and type(pair[1]) == str)):
         raise ValueError('Pair must be a tuple of strings or Sequences')
 
-    # All of the keys in the large dicts require 4+ characters.
-    if len(pair[0]) < 4:
+    # All of the keys in the large dicts require 5+ characters.
+    if len(pair[0]) < 5:
         return pair
 
     if snp_position == 'first':
@@ -576,7 +988,9 @@ def substitute_bases(pair, snp_position='last'):
         str_pair = (str(pair[0]), str(pair[1]))
 
     snp = Snp(f'.{len(str_pair[0])-1}{str_pair[0][-1]}>{str_pair[1][-1]}')
-    local_snps = TwoAlleles(f'>\n{str_pair[0][-4:-1]}\n>\n{str_pair[1][-4:-1]}').snps()
+
+    # Record the SNPs in the 2nd, 3rd, 4th, or 5th position from the 3' end
+    local_snps = TwoAlleles(f'>\n{str_pair[0][-5:-1]}\n>\n{str_pair[1][-5:-1]}').snps()
 
     if len(local_snps) == 0:
         new_amas1, new_amas2 = substitute_with_one_snp(str_pair, 'last')
@@ -655,22 +1069,23 @@ def substitute_with_one_snp(pair, snp_position='last'):
 def substitute_with_two_snps(pair, snp, snp_position='last'):
     """
     Substitute the bases of the pair sequences when there are two SNPs
-    between the sequences in the last four bases. This function probably
+    between the sequences in the last five bases. This function probably
     should only be called by substitute_bases().
 
     This function assumes the primers in the pair are oriented on the
     plus strand.
 
     For reference, see
-    docs/STARP F primer design[4312].docx
+    docs/starp/STARP F primer design_clarified.docx
+
+    Long's written instructions assume the SNP is placed at the end of
+    the sequences. However, this function will also be called with a
+    SNP at the beginning of the sequences. In this case, his
+    verbal instructions were to perform the same operations but at the
+    beginning of the sequences. To avoid making another very similar
+    function, the sequences are reversed here then returned to their
+    original orientation at the end of the function.
     """
-    # Long's written instructions assume the SNP is placed at the end of
-    # the sequences. However, this function will also be called with a
-    # SNP at the beginning of the sequences. In this case, his
-    # verbal instructions were to perform the same operations but at the
-    # beginning of the sequences. To avoid making another very similar
-    # function, the sequences are reversed here then returned to their
-    # original orientation at the end of the function.
 
     # If the pair are downstream primers, as noted by snp_position
     # being 'first', we can reverse complement them and still use
@@ -680,14 +1095,6 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     else:
         pair = (str(pair[0]), str(pair[1]))
 
-    # Long's written instructions assume the SNP is placed at the end of
-    # the sequences. However, this function will also be called with a
-    # SNP at the beginning of the sequences. In this case, his
-    # verbal instructions were to perform the same operations but at the
-    # beginning of the sequences. To avoid making another very similar
-    # function, the sequences are reversed here then returned to their
-    # original orientation at the end of the function.
-
     if not pair[0][-1] != pair[1][-1]:
         raise ValueError('The sequences do not have a SNP in the last '
                          'position.')
@@ -695,18 +1102,17 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
     # All SNPs between the two alleles.
     snps = TwoAlleles(f'>\n{pair[0]}\n>\n{pair[1]}').snps()
 
-    # SNPs at 2nd, 3rd, or 4th position from the 3' end.
-    snps = list(filter(lambda snp: 0 < len(pair[0])-snp.position-1 < 4, snps))
+    # SNPs at 2nd, 3rd, 4th, or 5th position from the 3' end.
+    snps = list(filter(lambda snp: 0 < len(pair[0])-snp.position-1 < 5, snps))
 
     if len(snps) != 1:
-        raise ValueError('The sequences must have one SNP in the 2nd, 3rd, or '
-                         '4th position from the 3\' end.')
+        raise ValueError('The sequences must have one SNP in the 2nd, 3rd, 4th, or '
+                         '5th position from the 3\' end.')
 
     xsnp = snps[0]  # extra snp
 
     # Part of the codes created later concerns themselves about whether
-    # the additional SNP is a [C/G] or [A/T] SNP, or the others (see
-    # STARP F primer design[4312].docx, page 6). To simplify the possible
+    # the additional SNP is a [C/G] or [A/T] SNP, or the others. To simplify the possible
     # number of codes, [C/G] and [A/T] SNPs are designated as 'P' for paired
     # and all the rest are designated 'N'.
     if xsnp.nucleotides == {'C', 'G'} or xsnp.nucleotides == {'A', 'T'}:
@@ -715,30 +1121,14 @@ def substitute_with_two_snps(pair, snp, snp_position='last'):
         placeholder = 'N'
 
     encoded_seq = pair[0][:xsnp.position] + placeholder + pair[0][xsnp.position+1:]
-    code = seq_to_ambiguity_code(encoded_seq[-4:-1]) + pair[0][-1]
-    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
-
-    # Check if a 4-tuple was returned from the dict.
-    if isinstance(idx_to_sub, tuple):
-        if len(idx_to_sub) == 4:
-            if encoded_seq[xsnp.position] == idx_to_sub[0]:
-                idx_to_sub = idx_to_sub[1]
-            else:
-                idx_to_sub = idx_to_sub[3]
+    code = seq_to_ambiguity_code(encoded_seq[-5:-1]) + pair[0][-1]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code][seq_to_ambiguity_code(xsnp.ref_nucleotide)]
 
     seq1 = substitute(pair[0], idx_to_sub)
 
     encoded_seq = pair[1][:xsnp.position] + placeholder + pair[1][xsnp.position+1:]
-    code = seq_to_ambiguity_code(encoded_seq[-4:-1]) + pair[1][-1]
-    idx_to_sub = sub_index_two_snps[snp.nucleotides][code]
-
-    # Check if a 4-tuple was returned from the dict.
-    if isinstance(idx_to_sub, tuple):
-        if len(idx_to_sub) == 4:
-            if encoded_seq[xsnp.position] == idx_to_sub[0]:
-                idx_to_sub = idx_to_sub[1]
-            else:
-                idx_to_sub = idx_to_sub[3]
+    code = seq_to_ambiguity_code(encoded_seq[-5:-1]) + pair[1][-1]
+    idx_to_sub = sub_index_two_snps[snp.nucleotides][code][seq_to_ambiguity_code(xsnp.new_nucleotide)]
 
     seq2 = substitute(pair[1], idx_to_sub)
 
