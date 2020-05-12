@@ -31,7 +31,7 @@ class Additive:
         self.n = 1 + math.ceil((len(target_sequence) / 3000) - 0.3)
 
     def _additive(self):
-        """ Units are in ul. """
+        """ Units are in ul (microliters). """
         additive = None
 
         if math.isnan(self.max_gc):
@@ -51,12 +51,10 @@ class Additive:
         return additive
 
     def _max_gc(self):
-        """ Returns the max GC content of any 100 bp subsequence
-        in sequence. """
+        """ Returns the maximum GC content of any 100 bp subsequence
+        in the sequence. """
 
-        # What to do about Ns?
         if len(self.sequence) < 100:
-            # What to do?
             return float('nan')
 
         # Get all 100 bp sequence from the target sequence.
@@ -65,6 +63,8 @@ class Additive:
         return max(gcs)
 
     def _min_gc(self):
+        """ Returns the minimum GC content of any 100 bp subsequence
+        in the sequence. """
         if len(self.sequence) < 100:
             return float('nan')
 
@@ -95,9 +95,18 @@ class Pair:
     primer is on the minus strand, both written 5' -> 3' on the
     corresponding strand.
 
+    Since calculating the complementary scores is an expensive
+    operation, calling the 'complementary_score' attribute calls the
+    complementary_score() function annoted by the @property tag. The
+    first time this is done, the score is calculated and stored in the
+    private variable _complementary_score which is returned for each
+    further call.
+
     Attributes:
         forward_primer: A Primer object on the plus strand.
         reverse_primer: A Primer object on the minus strand.
+        additive: An Additive object containing PCR information of
+                  this pair.
         complementary_score: The maximum number of complementary
             nucleotides between these two pairs.
         contig_complementary_score: The maximum number of contiguous
@@ -111,6 +120,7 @@ class Pair:
     Public Methods:
         additive: Returns an additive object containing the PCR
             condition information.
+        toJSON: Return this Pair as a JSON-formatted dictionary.
      """
 
     def __init__(self, forward_primer, reverse_primer):
@@ -137,6 +147,7 @@ class Pair:
                 f'contig_complementary_score={self.contig_complementary_score})')
 
     def toJSON(self):
+        """ Return this pair as a JSON-formatted dictionary. """
         return {'forward_primer' : {'sequence': self.forward_primer.sequence,
                                                'span': self.forward_primer.span,
                                                'tm': self.forward_primer.tm,
@@ -236,7 +247,6 @@ class Sequence:
         self._contig_complementary_score = None
         self._gc = None
         self._tm = None
-        
 
     def __eq__(self, other):
         if not isinstance(other, Sequence):
@@ -291,7 +301,7 @@ class Sequence:
         """ Returns an estimated melting temperature of this sequence.
         Note: this is only accurate for sequences of ~16-24 characters.
 
-        TODO: Include the sources for these values.
+        Source: docs/starp/Nearest-Neighbor Thermodynamic Parameters.pdf
         """
 
         if self._tm is not None:
@@ -306,7 +316,8 @@ class Sequence:
                    'CA': -22.7, 'CT': -21.0, 'CC': -19.9, 'CG': -27.2,
                    'GA': -22.2, 'GT': -22.4, 'GC': -24.4, 'GG': -19.9}
 
-        # Split the sequence into strings of length 2 and get their value.
+        # Split the sequence into strings of length 2 and get their enthalpy
+        # and entropy values.
         chunks = [self.sequence[i:i+2] for i in range(len(self.sequence)-1)]
         try:
             h = sum(enthalpy[chunk] for chunk in chunks)
@@ -387,9 +398,6 @@ class Sequence:
 
         Returns
             True if this sequence has a mononucleotide repeat.
-
-        Raises:
-            None
         """
         pattern = re.compile('A+|G+|C+|T+')
         result = re.findall(pattern, self.sequence)
@@ -398,13 +406,12 @@ class Sequence:
     def has_dinucleotide_repeat(self, n):
         """
         Args:
-            n: Desired length of dinucleotide repeat.
+            n: Desired length of dinucleotide repeat. Eg, GAGAGAGA
+               is a 'GA' repeat of size n=4.
 
         Returns:
-            True if this sequence has a dinucleotide repeat of length n.
-
-        Raises:
-            None
+            True if this sequence has a dinucleotide repeat of length
+            n. Else, False.
         """
         n = str(n)
         pattern = re.compile('(AT){'+ n +'}|(TA){'+ n +'}|(AC){'+ n +'}|(CA){'+ n
@@ -428,9 +435,6 @@ class Sequence:
             True: if the primer has contiguous complementary >= n or
                 the difference between primer length and complementary
                 score <= m.
-
-        Raises:
-            None
         """
         return (self.contig_complementary_score >= n
                 or len(self) - self.complementary_score <= m)
@@ -441,7 +445,8 @@ class Primer(Sequence):
     Args:
         sequence: The string of nucleotides that make up this primer.
         span: A tuple with start and end indices of the primer's binding
-            site, where start is inclusive and end is exclusive.
+            site, where start is inclusive and end is exclusive. This
+            should be 0-indexed (unlike the input data to the program).
         strand: 1 represents the plus strand, -1 is the minus strand.
         custom: Set to true if this is a custom primer the user
             specified.

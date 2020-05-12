@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 from difflib import SequenceMatcher
 import itertools
 
@@ -247,7 +243,7 @@ def rgenerate(allele1, allele2, min_length, max_length):
     are not accurate when there is a '-' in the sequence, but get
     updated when a dash is the first character in each sequence.
 
-    Since a SNP cannot look like (-/-), it is not possible for two
+    Since a SNP cannot look like [-/-], it is not possible for two
     sequences to be equal if either contains a dash.
 
     Args:
@@ -289,12 +285,20 @@ def rgenerate(allele1, allele2, min_length, max_length):
 
 def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets):
     """
-    allele1: The aligned first allele.
-    allele2: The aligned second allele.
 
-    TODO: Complete documentation.
+    Filter out the r_primers that have multiple binding sites in the
+    alleles and any that have a binding site in the nontargets.
+
+    Args:
+        r_primers: The list of Primers to filter.
+        allele1: The aligned first allele. Each returned rprimer has a
+            single binding site here.
+        allele2: The aligned second allele. Each returned rprimer has a
+            single binding site here.
+        nontargets: Each returned rprimer has no binding sites here.
     """
 
+    # This is the list of the rprimers to return.
     candidates = []
 
     for primer in r_primers:
@@ -304,7 +308,7 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets):
             continue
 
         # Move on if the primer has other potential binding sites in
-        # these sequences.
+        # nontarget sequences.
 
         if binding_sites(nontargets, primer, stop=1):
             continue
@@ -312,7 +316,8 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets):
         if binding_sites(nontargets, primer.rev_comp(), stop=1):
             continue
 
-        # The primer's binding sites are acceptable.
+        # If it made it all the way down here, the primer's binding sites
+        # are acceptable.
         candidates.append(primer)
 
     return candidates
@@ -320,7 +325,7 @@ def rfilter_by_binding_sites(r_primers, allele1, allele2, nontargets):
 def rtailed(rprimers: list) -> list:
     """
     Add tails to reverse primers as described in
-    docs/Starp R primer design[4311].
+    docs/starp/Starp R primer design[4311].
 
     Then, returns the primers shorter than 28 bases and those with
     tm <= 62 degrees C.
@@ -416,7 +421,7 @@ def segregate(primers: list):
 
 def rsorted(primers: list) -> list:
     """
-    Sorts the primers with the following conditions:
+    Sorts the primers with a multi-key sort on the following conditions:
 
     1) Has 9 contiguous (G and/or C) or 11 contiguous (A and/or T)
     2) Has 7 As, Ts, Gs, or Cs
@@ -442,11 +447,13 @@ def rsorted(primers: list) -> list:
     22) Has 4 contiguous complementarity or (primer length - max complementarity) ≤ 14
     23) Closest to 22 nucleotides
 
+    Source: 'docs/starp/Starp R primer design[4311].docx', step 14.
+
     Args:
-        The R primers to be sorted.
+        The rprimers to be sorted.
 
     Returns:
-        A sorted list of R primers with the best primers at the front.
+        A sorted list of rprimers with the best primers at the lowest indices.
     """
 
     # True values go towards the end of the list, so the best primers
@@ -479,7 +486,7 @@ def rsorted(primers: list) -> list:
                                       primer.gc < 0.40 or primer.gc > 0.60, # 21
                                       primer.contig_complementary_score >= 4,  # 22a
                                       len(primer) - primer.complementary_score <= 14,  # 22
-                                      abs(len(primer)-22)))
+                                      abs(len(primer)-22)))  # 23
 
 def hamming(s1, s2):
     """Return the Hamming distance between equal-length sequences.

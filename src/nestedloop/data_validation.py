@@ -121,6 +121,8 @@ def validate_amplicon_size(pcr_min: int, pcr_max: int):
     return pcr_min, pcr_max
 
 def validate_fspan(f_from: int, f_to: int, ref_sequence):
+    """ Verifies the input to f_from and f_to and zero-indexes the
+    range. """
     from nestedloop import F_FROM_MIN, F_TO_MIN
 
     if not isinstance(f_from, int) or not isinstance(f_to, int):
@@ -138,6 +140,8 @@ def validate_fspan(f_from: int, f_to: int, ref_sequence):
     return f_from-1, f_to
 
 def validate_rspan(r_from: int, r_to: int, ref_sequence):
+    """ Verifies the input to r_from and r_to and zero-indexes the
+    range. """
     from nestedloop import R_FROM_MIN, R_TO_MIN
 
     if not isinstance(r_from, int) or not isinstance(r_to, int):
@@ -176,8 +180,8 @@ def validate_num_to_return(num_to_return: int):
     return num_to_return
 
 def validate_nontargets(nontargets: str):
-    """ Return the 'hseqs' (hit sequences) from the nontarget xml data.
-    """
+    """ Validates the nontarget input and returns a list of 'hseqs' 
+    (hit sequences) from the nontarget xml data. """
     nontarget_seqs = []
 
     if nontargets:

@@ -4,11 +4,16 @@ import itertools
 from Bio import Align
 import regex
 
+"""
+This file provides a bunch of utility functions that are required in
+other places.
+"""
+
 def binding_sites(sequences: tuple, primer, stop=2):
     """
     Returns a list of potential binding sites of this primer on these
     sequences. A binding site is defined as a match with <= 4 nucleotide
-    subsitutions with a mismatch on the 3' end AND 2 more mismatches on
+    subsitutions or a match on the 3' end or < 2 mismatches on
     the 2nd, 3rd, or 4th position from the 3' end.
 
     Note that this method does not specify which sequence a binding site
@@ -34,9 +39,6 @@ def binding_sites(sequences: tuple, primer, stop=2):
     Returns:
         A list of regex.Match objects representing binding sites for the
         primer.
-
-    Raises:
-        None
     """
     TOLERANCE = 4  # Number of acceptable nucleotide substitutions.
 
@@ -55,6 +57,8 @@ def binding_sites(sequences: tuple, primer, stop=2):
         # not iterable.
         for match in matches_iter:
             matched_seq = match.group()
+
+            # If the final nucleotides are equal or there are 
             if (str(primer)[-1] == matched_seq[-1]
                     or hamming(str(primer)[-4:-1], matched_seq[-4:-1]) < 2):
                 sites.append(match)
@@ -92,7 +96,11 @@ def complementary_score(s1: str, s2: str) -> int:
     """
     aligner = Align.PairwiseAligner()
     aligner.mode = 'local'
-    aligner.open_gap_score = -1000 # Don't want any gaps!
+
+    # A low gap score makes sure that the sequence is not broken up into
+    # smaller chunks in the alignment procedure.
+    aligner.open_gap_score = -1000
+
     # score = the number of complementary nucleotides between s1 and s2.
     return aligner.score(str(s1), str(s2.complement()))
 
@@ -149,6 +157,8 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
     Raises:
         ValueError: strand argument is not 1 or -1.
     """
+
+    # This import at the top of the file causes circular imports.
     from .models import Primer
 
     if strand not in {1, -1}:
@@ -164,14 +174,12 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
         if strand == 1:
             # Generate all possible candidates with starting index equal
             # to i.
-            candidates = [Primer(sequence=ref_sequence[i:i+size],
-                                 span=(i, i+size), strand=strand)
+            candidates = [Primer(sequence=ref_sequence[i:i+size], span=(i, i+size), strand=strand)
                           for size in range(min_length, max_length+1)]
         else:
             # Generate all possible candidates with ending index equal to
             # i on the minus strand.
-            candidates = [Primer(sequence=ref_sequence[i-size:i+1].rev_comp(),
-                                 span=(i-size, i+1), strand=strand)
+            candidates = [Primer(sequence=ref_sequence[i-size:i+1].rev_comp(), span=(i-size, i+1), strand=strand)
                           for size in range(min_length, max_length+1)]
             #candidates = [Primer(self.rev_comp_ref_sequence[i-size:i+1], i-size, i+1, strand=-1)
             #              for size in range(min_length, max_length+1)]
@@ -179,8 +187,8 @@ def primer_generate(ref_sequence, strand: int, start: int, stop: int, tms: tuple
         # Choose the candidate with the optimum melting temperature.
         best_candidate = min(candidates, key=lambda c: abs(tms[1] - c.tm))
 
-        # We need to verify it's within min/max temperature and
-        # is wholly contained within start/stop.
+        # Verify that this primer is within the min/max temperatures and is
+        # wholly contained within start/stop indices.
         if (tms[0] <= best_candidate.tm <= tms[2]
                 and start <= best_candidate.start
                 and stop >= best_candidate.end):
@@ -200,9 +208,6 @@ def pair_sort(pairs):
 
     Returns:
         A sorted list of pairs.
-
-    Raises:
-        None.
     """
 
     return sorted(pairs,
@@ -231,9 +236,6 @@ def primer_sort(primers):
 
     Returns:
         A sorted list of primers.
-
-    Raises:
-        None.
     """
 
     return sorted(primers,
@@ -300,9 +302,6 @@ def has_one_binding_site(primer, ref_sequence, nontarget_seqs):
     Returns:
         True if the primer has exactly one binding site. Otherwise,
         False.
-
-    Raises:
-        None.
     """
     sequences = [ref_sequence] + nontarget_seqs
     return len(binding_sites(sequences, primer)) == 1
@@ -322,9 +321,6 @@ def combine(f_primers, r_primers, num_to_return, pcr_min, pcr_max,
         f_primers: A list of forward primers.
         r_primers: A list of reverse primers.
         num_to_return: The maximum number of pairs to return.
-
-    Raises:
-        None.
 
     Returns:
         The list of the best primer pairs.

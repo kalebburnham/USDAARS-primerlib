@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 import re
 import textwrap
 
@@ -13,15 +9,12 @@ from bs4 import BeautifulSoup
 # future, making our program unusable until the parsers are updated.
 
 class XmlParser:
-    """ Take XML data from BLAST searches and put them into HSP
-    objects. Works with BLAST XML version 1.0.
+    """ Take XML data from BLAST searches and returns a list of hit
+    sequence strings. Works with BLAST XML version 1.0.
     """
 
-    def __init__(self, size=80):
-        """ size is the length of each line in a human-readable
-        pairwise output. Not actually used in the parsing.
-        """
-        self.size = size
+    def __init__(self):
+        pass
 
     def parse(self, xml):
         """ Returns a list of hit sequences from the xml data. """
@@ -54,7 +47,7 @@ class PairwiseParser:
                       ||||||||| |||||||||| || ||||||||||||||||||||||||||||||||||||
     Sbjct  148076245  TGCGATGAC-GAAAAAAAAACGGCGGTGGGAGTATGACGAAAATAAACCAGCGAAAATTA  148076187
 
-    Note that it is not recommended to use this format.
+    Note that it is NOT recommended to use this format.
     """
 
     def __init__(self):
@@ -62,7 +55,12 @@ class PairwiseParser:
 
     def parse(self, data):
         """
-        Returns a list of the subject sequence, aka hit sequences (hseqs).
+        Returns:
+            A list of the subject sequences, aka hit sequences (hseqs).
+
+        Args:
+            data: A string composed of the human-readable BLAST output.
+                  See the class comment.
         """
         data = self.tokenize(data)
 

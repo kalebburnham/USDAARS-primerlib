@@ -34,28 +34,31 @@ class NestedLoop:
     and everything gets called from here.
 
     Attributes:
-        ref_sequence - A string of the reference sequence, possibly in FASTA format.
-        tm - A 3-tuple of (minimum, optimum, maximum) temperature.
-        f_from - An int representing the first point to look for f primers.
-        f_to - An int representing the last point to look for f primers.
-        r_from - An int representing the first point to look for r primers.
-        r_to - An int representing the last point to look for r primers.
-        pcr_min - An integer, the minimum distance between the primers.
-        pcr_max - An integer, the maximum distance between the primers.
-        num_to_return - An integer, the maximum number of pairs to return, if possible.
-        custom_forward_primer - A string of any custom f primer. Else, empty string.
+        ref_sequence: A string of the reference sequence, possibly in FASTA format.
+        tm: A 3-tuple of (minimum, optimum, maximum) melting temperature.
+        f_from: An int representing the first point to look for f primers.
+                 1-indexed inclusive, i.e. first nucleotide is the first position
+                 and the range is [from, to]
+        f_to: An int representing the last point to look for f primers.
+               1-indexed inclusive - see f_from
+        r_from: An int representing the first point to look for r primers.
+                 1-indexed inclusive - see f_from
+        r_to: An int representing the last point to look for r primers.
+               1-indexed inclusive - see f_from
+        pcr_min: An integer, the minimum distance between the primers.
+        pcr_max: An integer, the maximum distance between the primers.
+        num_to_return: An integer, the maximum number of primer pairs to return, if possible.
+        custom_forward_primer: A string of any custom f primer. Else, empty string.
             Should be written 5'->3' on PLUS strand.
-        custom_reverse_primer - A string of any custom r primer. Else, empty string.
+        custom_reverse_primer: A string of any custom r primer. Else, empty string.
             Should be written 5'->3' on MINUS strand.
-        nontargets: Nontarget data in XML format.
+        nontargets: A string of nontarget data in XML format.
 
     """
 
     def __init__(self, ref_sequence, tm, f_from, f_to, r_from, r_to,
                  pcr_min, pcr_max, num_to_return, custom_forward_primer=None,
                  custom_reverse_primer=None, nontargets=None):
-        """ ** Regions should be entered into the program as 1-indexed inclusive
-        """
         self.ref_sequence = validate_reference_sequence(ref_sequence)
         self.tm_min = validate_temperature(tm[0])
         self.tm_opt = validate_temperature(tm[1])
@@ -77,11 +80,15 @@ class NestedLoop:
 
     def run(self):
 
+        # If the user designated a custom F primer, set it as the sole entry
+        # in the f_primers array. Else, generate the list.
         if self.custom_forward_primer:
             self.f_primers = [self.custom_forward_primer]
         else:
             self.f_primers = primer_generate(self.ref_sequence, 1, self.f_from, self.f_to, (self.tm_min, self.tm_opt, self.tm_max))
 
+        # If the user designated a custom F primer, set it as the sole entry
+        # in the r_primers array. Else, generate the list.
         if self.custom_reverse_primer:
             self.r_primers = [self.custom_reverse_primer]
         else:
@@ -95,6 +102,7 @@ class NestedLoop:
         self.pairs = combine(self.f_primers, self.r_primers,
                              self.num_to_return, self.pcr_min, self.pcr_max,
                              self.ref_sequence, self.nontarget_seqs)
+
 
         for pair in self.pairs:
             pair.additive(self.ref_sequence)

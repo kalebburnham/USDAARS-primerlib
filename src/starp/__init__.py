@@ -1,10 +1,5 @@
-"""
-License information goes here.
-"""
-
 import textwrap
 import html
-import logging
 import itertools
 import time
 
@@ -13,7 +8,7 @@ from .amasfactory import (generate_amas_for_substitution,
 from .utils import (add_rtails, rgenerate, rfilter, rfilter_tailed_primers,
                     rsorted, rfilter_by_binding_sites,
                     rtailed, add_tails)
-from .models import Sequence, Snp, AmasGroup, StarpGroup
+from .models import Sequence, Snp, StarpGroup
 from .parsers import get_parser
 from .data_validation import validate_input_data, validate_nontargets
 
@@ -27,14 +22,17 @@ class Starp:
     """
     Attributes:
         input_data: The user's input.
-        amas:
-        reverse_primers:
-        num_to_return: The number of reverse primers to return
+        nontargets: A list of hit sequences. Could be empty.
         snp: The user's chosen SNP, around which AMAS primers will be
             created.
         snps: A list of all SNPs between the two alleles.
         allele1: The allele with all the first choices of each SNP
         allele2: The allele with all the second choices of each SNP
+        allele1_aligned: The alignment of allele1 with insertions and
+                         deletions.
+        allele2_aligned: The alignment of allele2 with insertions and
+                         deletions.
+        starp_groups: 
     """
     def __init__(self, input_data, nontargets=None):
         """
@@ -45,21 +43,10 @@ class Starp:
 
         Returns:
             None
-
-        Raises:
-            None
-
         """
         self.input_data = validate_input_data(input_data)
         
         self.nontargets = validate_nontargets(nontargets)
-
-        self.amas = None
-        self.upstream_pairs = list()
-        self.downstream_pairs = list()
-        self.reverse_primers = list()
-        self.num_to_return = 5
-        self.pcr_max = 500 ### ********* TEMPORARY VALUE
 
         snp_parser = get_parser(self.input_data)
         self.snps = snp_parser.snps()
@@ -75,7 +62,6 @@ class Starp:
         self.allele2_aligned = Sequence(snp_parser.allele2_aligned)
 
         self.starp_groups = []
-        self.triples = []
 
         # Generate a Starp Group for each SNP.
         # A StarpGroup contains a SNP, an AMAS primer for both alleles,
@@ -84,8 +70,6 @@ class Starp:
         # group determines which are appropriate rprimers for itself.
         # These are saved in self.starp_groups
         self.prototype()
-
-        logging.getLogger().setLevel(logging.INFO)
 
     def set_snp(self, descriptor: str):
         snp = Snp(descriptor)

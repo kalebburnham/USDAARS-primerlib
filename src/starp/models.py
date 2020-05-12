@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 import re
 from copy import deepcopy
 
@@ -16,19 +12,26 @@ class Sequence:
 
     Attributes:
         sequence: The string of nucleotides.
-        gc:
-        tm:
-        complementary_score:
-        contig_complementary_score:
+        gc: The GC content of this sequence. Between 0 and 1.
+        tm: The melting temperature of this sequence, in Celsius.
+        complementary_score: The number of complementary nucleotides
+            this sequence has with its reverse.
+        contig_complementary_score: The number of contigous
+            complementary nucleotides this sequence has with its
+            reverse.
 
     Public Methods:
-        complement
-        reverse
-        rev_comp
-        has_contig_gc_at
-        has_in_last
-        has_mononucleotide_repeat
-        has_dinucleotide_repeat
+        complement: Complement of this sequence.
+        reverse: Reverse this sequence.
+        rev_comp: Reverse complement this sequence.
+        has_contig_gc_at: Check if this sequence has a contiguous G/C
+            or A/T sequence.
+        has_in_last: Check if this sequence has a specific number of
+            G/C or A/T bases in the last X nucleotides.
+        has_mononucleotide_repeat: Check if this sequence has a repeat
+            of a single nucleotide.
+        has_dinucleotide_repeat: Check if this sequence has a repeat of
+            two nucleotides.
     """
 
     def __init__(self, sequence):
@@ -90,7 +93,7 @@ class Sequence:
         """Returns an estimated melting temperature of this sequence.
         Note: this is only accurate for sequences of ~16-24 characters.
 
-        Source: docs/Nearest-Neighbor Thermodynamic Parameters.pdf
+        Source: docs/starp/Nearest-Neighbor Thermodynamic Parameters.pdf
         """
         if re.search('[^ACGT]', self.sequence) is not None:
             return float('nan') # Cannot calculate tm with bad characters.
@@ -116,7 +119,7 @@ class Sequence:
 
     @property
     def complementary_score(self):
-        """ Return the self complementary score of this primer. """
+        """ Return the self complementary score of this sequence. """
         if hasattr(self, '_complementary_score'):
             return self._complementary_score
 
@@ -189,7 +192,7 @@ class Sequence:
 
         Returns:
             True if this sequence has gc G/C or at A/T in the last p
-            bases.
+            bases. Else, False.
 
         Raises:
             IndexError: if p is greater than the sequence length.
@@ -213,10 +216,7 @@ class Sequence:
             num_at: Desired length of A or T repeat.
 
         Returns
-            True if this sequence has a mononucleotide repeat.
-
-        Raises:
-            None
+            True if this sequence has a mononucleotide repeat. Else, False.
         """
         num_gc = str(num_gc)
         num_at = str(num_at)
@@ -231,9 +231,6 @@ class Sequence:
 
         Returns:
             True if this sequence has a dinucleotide repeat of length n.
-
-        Raises:
-            None
         """
         n = str(n)
         pattern = re.compile('(AT){'+ n +'}|(TA){'+ n +'}|(AC){'+ n +'}|(CA){'+ n
@@ -253,8 +250,24 @@ class Sequence:
         return sum(el1 != el2 for el1, el2 in zip(s1, s2))
 
 class Primer(Sequence):
-    """ Represents a PCR primer. Initialization requires a Sequence
-    object, start index, end index, and the strand it resides on."""
+    """ Represents a PCR primer.
+    
+    Attributes:
+        sequence: Inherited from :class:Sequence.
+        allele1_span: The tuple [start, end) of this primer's binding site on
+            the first allele.
+        allele2_span: The tuple [start, end) of this primer's binding site on
+            the second allele.
+        strand: Either 1 or -1 specifying if this primer resides on the plus
+            or minus strand.
+        allele1_start: The starting position of this Primer on allele1.
+        allele1_end: The 'end' position of this Primer on allele1 from the span.
+        allele2_start: The starting position of this Primer on allele2.
+        allele2_end: The 'end' position of this Primer on allele2 from the span.
+
+    Public Methods:
+        rev_comp: Reverse complement this primer while switching strands.
+    """
 
     def __init__(self, sequence: str, allele1_span: tuple, allele2_span: tuple, strand):
         # All sequences are oriented 5'->3' on its corresponding strand.
@@ -306,6 +319,8 @@ class Primer(Sequence):
         return self.allele2_span[1]
 
     def rev_comp(self):
+        """ Reverse complement sequence and return a new primer on the
+        opposite strand. """
         seq = Sequence(self.sequence)
         return Primer(seq.rev_comp(), allele1_span=self.allele1_span,
                       allele2_span=self.allele2_span, strand=self.strand*-1)
@@ -317,9 +332,19 @@ class AmasPrimer(Sequence):
     Attributes:
         tail: The added tail on the 5' end.
         allele_num: The allele this primer originated from. The first
-            allele entered is allele *1* and the second is allele *2*.
-        span: The start and stop positions of this primer. Should be
-            [inclusive, exclusive)
+            allele entered is allele 1 and the second is allele 2.
+        span: The beginning and ending positions of this primer. Should
+        be [inclusive, exclusive)
+        start: The first number in the span.
+        end: The second number in the span.
+
+    Public Methods:
+        tm: The melting temperature of this primer's original sequence
+            (before substitution) without the tail.
+        rev_comp: Reverse complement everything except the tail. Tails
+            are never rev_comp'ed.
+        html: Return a string of markup with the tail underlined and
+            italicized. This is used in the HTML templates.
     """
 
     def __init__(self, sequence, allele_num, span, strand=1, original_seq=None):
@@ -381,32 +406,6 @@ class AmasPrimer(Sequence):
         markup = f'<span><u><i>{str(self.tail)}</i></u>{str(self.sequence)}</span>'
         return markup
 
-class AmasGroup:
-    """
-    A container for amas primers and corresponding rprimers.
-    """
-    def __init__(self, amas, rprimers):
-        self.amas = list(amas)
-        self.rprimers = list(rprimers)
-
-    def add_rtails(self):
-        """ Add tails to rprimers with low melting temperature. """
-        low, high = segregate(self.rprimers)
-        low = rtailed(low)
-        self.rprimers = low + high
-
-class AmasPair:
-    """
-    Contains two AMAS primers with a single common rprimer.
-
-    Attributes:
-        amas: 2-Tuple of AmasPrimers.
-        rprimer: The common reverse primer.
-    """
-    def __init__(self, amas, rprimer):
-        self.amas = amas
-        self.rprimer = rprimer
-
 class Snp:
     """
     An object representing a single-nucleotide polymorphism.
@@ -428,9 +427,9 @@ class Snp:
         type: A string saying the type of the SNP. Current possible
             values are "substitution", "insertion", and "deletion".
         ref_nucleotide: The first possible nucleotide in the SNP. For
-            example, in the SNP (C/G), ref_nucleotide is C.
+            example, in the SNP [C/G], ref_nucleotide is C.
         new_nucleotide: The second possible nucleotide in the SNP. For
-            example, in the SNP (C/G), new_nucleotide is G.
+            example, in the SNP [C/G], new_nucleotide is G.
         nucleotides: A set containing the two nucleotides.
             Usage:
             >> snp.ref_nucleotide == 'G'
@@ -440,7 +439,7 @@ class Snp:
 
     """
 
-    def __init__(self, descriptor, aligned_pos=None):
+    def __init__(self, descriptor):
         """ It is assumed the descriptor has zero-indexed positions.
         Currently this object should accept the Human Genome Variation
         Society SNP standard as described at
@@ -465,7 +464,6 @@ class Snp:
         self.type = parser.type()
         self.ref_nucleotide = parser.ref_nucleotide()
         self.new_nucleotide = parser.new_nucleotide()
-        self.aligned_pos = aligned_pos
 
     def __eq__(self, other):
         return (self.descriptor == other.descriptor
@@ -493,7 +491,6 @@ class Snp:
     def nucleotides(self):
         # Type frozen set so it is hashable
         return frozenset((self.ref_nucleotide, self.new_nucleotide))
-    
 
 class SnpParser:
     """
@@ -512,9 +509,6 @@ class SnpParser:
 
         Returns:
             An int representing the start index of self.descriptor.
-
-        Raises:
-            None
         """
         suffix = self.descriptor.replace(self.prefix(), '')
         match = re.match(r'\d+', suffix)
@@ -578,6 +572,9 @@ class SnpParser:
 class StarpGroup:
 
     """
+    A class that contains primer and snp information for a single
+    location. 
+
     Attributes:
         amas1: The AMAS primer on the first allele.
         amas2: The AMAS primer on the second allele.
@@ -589,7 +586,12 @@ class StarpGroup:
         rcandidates: All possible reverse primers. From this list, the
             best primers are chosen to pair with the AMAS primers.
             These primers should have already been sorted, filtered by
-            their contents and filtered by their binding sites
+            their contents, and filtered by their binding sites.
+        rprimers: The primers that are considered 'paired' with the AMAS
+            primers. These are the primers that are displayed.
+        snp: The Snp object which the primers are being constructed about.
+        num_rprimers: The maximum number of primers to pair with the
+            AMAS primers. Defaults to 3.
     """
 
     def __init__(self, amas1, amas2, snp_position, rcandidates=[], snp=None, num_rprimers=3):
@@ -614,15 +616,19 @@ class StarpGroup:
         return [self.amas1, self.amas2]
     
     def set_rprimers(self):
-        """ Sorts the rcandidates and chooses the best primers according
-        to the AMAS primers. 
+        """ Sorts the rcandidates and selects the first 'num_rprimers' primers
+        that are in a valid position according to the AMAS primers and will
+        not bind to them.
 
         Returns:
             The best rprimers matching this pair of AMAS primers.
-
         """
         sorted_primers = rsorted(self.rcandidates)
+
         for primer in sorted_primers:
+
+            # If this primer is not in a valid position or it overlaps with an
+            # AMAS primer, move on to the next one.
             if self.snp_position == 'first':
                 if primer.allele1_end > self.amas1.start:
                     continue
@@ -634,7 +640,9 @@ class StarpGroup:
                 if primer.allele2_start < self.amas2.end:
                     continue
 
-            # Check complementarity with AMAS primers.
+            # Check complementarity with AMAS primers. If this r primer
+            # has at least 5 unpaired nucleotides with both AMAS primers,
+            # add it to the list.
             if (len(primer) - complementary_score(primer, self.amas1) > 5
                     and len(primer) - complementary_score(primer, self.amas2) > 5):
                 self.rprimers.append(primer)
@@ -645,9 +653,12 @@ class StarpGroup:
         return self.rprimers
 
     def segregate(self, tail1, tail2):
-        """ Splits this group into max two other groups. In one,
-        amas1 and amas2 have tail1 and tail2 respectively. The
-        corresponding rprimers agree with these tails.
+        """ Splits this group into max two other groups. In one, amas1
+        and amas2 have tail1 and tail2 respectively. The corresponding
+        rprimers agree with these tails. By 'agree', it is meant that
+        the tails added to the AMAS primers are the same tails that are
+        defined by the rprimers according to
+        'docs/starp/STARP R primer design[4311].docx', page 6.
 
         In the other group, amas1 and amas2 have tail2 and tail1
         respectively. Again, the group's rprimers agree with these
@@ -655,48 +666,57 @@ class StarpGroup:
 
         Once the groups has been made, the tails need to be cut if they
         have overlapping bases at the 3' end.
-
         """
         
-        groups = []
         group1 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
         group1.amas1.tail = tail1
         group1.amas2.tail = tail2
+
+        # Choose the rprimers that lead to tail1 attached to amas1 and tail2
+        # attached to amas2.
         group1.rprimers = list(filter(lambda rprimer: self.assigns_tail(
                                              group1.amas1.tail, group1.amas2.tail,
                                              group1.amas1, group1.amas2, rprimer, self.snp_position),
                                       self.rprimers))
 
+
         group2 = StarpGroup(deepcopy(self.amas1), deepcopy(self.amas2), self.snp_position, snp=self.snp)
-        group2.amas1.tail = tail2  # Changed which tails are assigned.
+        group2.amas1.tail = tail2
         group2.amas2.tail = tail1
+        # Choose the rprimers that lead to tail2 attached to amas1 and tail1
+        # attached to amas2.
         group2.rprimers = list(filter(lambda rprimer: self.assigns_tail(
                                              group2.amas1.tail, group2.amas2.tail,
                                              group2.amas1, group2.amas2, rprimer, self.snp_position),
                                       self.rprimers))
 
+        # Cut the ends of the tails if they have overlapping bases with the
+        # AMAS primers as instructed by
+        # 'docs/starp/STARP R primer design[4311].docx', page 6.
         group1.amas1.tail = cut(group1.amas1.tail, Sequence(group1.amas1.sequence), snp_position=group1.snp_position)
         group1.amas2.tail = cut(group1.amas2.tail, Sequence(group1.amas2.sequence), snp_position=group1.snp_position)
 
         group2.amas1.tail = cut(group2.amas1.tail, Sequence(group2.amas1.sequence), snp_position=group2.snp_position)
         group2.amas2.tail = cut(group2.amas2.tail, Sequence(group2.amas2.sequence), snp_position=group2.snp_position)
 
-        # Note: note of these groups may not have any rprimers.
+        # Note: none of these groups may not have any rprimers.
         return [group1, group2]
 
     def assigns_tail(self, amas1_tail, amas2_tail, amas1, amas2, rprimer, snp_position):
         """ Returns true if the tails defined by the rprimer are equal to
         amas1_tail and amas2_tail.
 
-        Source: docs/STARP R primerdesign[4311].docx page 6.
+        Source: docs/starp/STARP R primer design[4311].docx page 6.
 
         Args:
-            amas1_tail:
-            amas2_tail:
-            amas1:
-            amas2:
-            rprimer:
-            snp_position:
+            amas1_tail: The tail attached to amas1.
+            amas2_tail: The tail attached to amas2.
+            amas1: The AmasPrimer object on the first allele.
+            amas2: The AmasPrimer object on the second allele.
+            rprimer: The Primer object that is being checked.
+            snp_position: A string specifying the relative position of
+                the SNP between these AMAS primers. Either 'first' or
+                'last'.
         """
         tail1 = Sequence('GCAACAGGAACCAGCTATGAC')
         tail2 = Sequence('GACGCAAGTGAGCAGTATGAC')
@@ -711,6 +731,10 @@ class StarpGroup:
                 amas2 = amas2.rev_comp()
 
         return_val = False
+
+        # The tail defined by the rprimer depends on the amplicon lengths
+        # between it and the AMAS primers. See
+        # docs/starp/STARP R primer design[4311].docx page 6
         if amplicon1 - amplicon2 >= 8:
             return_val = (tail1 == amas1_tail and amas2 == amas2_tail)
         elif amplicon1 - amplicon2 >= 1:
@@ -739,14 +763,3 @@ class StarpGroup:
             return_val = (tail2 == amas1_tail and tail1, amas2 == amas2_tail)
 
         return return_val
-
-class StarpTriple:
-    """ A collection of usable primers in PCR. Includes both AMAS
-    primers, their common reverse primer, and the SNP they were built
-    around. """
-
-    def __init__(self, snp, amas1, amas2, rprimer):
-        self.snp = snp
-        self.amas1 = amas1
-        self.amas2 = amas2
-        self.rprimer = rprimer

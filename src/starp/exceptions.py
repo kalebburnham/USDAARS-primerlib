@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 class StarpError(Exception):
     """ A basic error to distinguish between program issues and
     conditions that forces Starp to stop. """

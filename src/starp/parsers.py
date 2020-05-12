@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 import re
 import regex
 from bs4 import BeautifulSoup
@@ -13,11 +9,12 @@ def get_parser(data):
     """
     Given the user's input data, return the correct Parser.
 
-    It is highly recommended (by NCBI) not to use BLAST data pairwise
+    It is highly recommended (by NCBI!) not to use BLAST data pairwise
     data in other programs. That is only meant to be human-readable and
-    is subject to significant changes in the future.
+    is subject to significant changes in the future. However, it has
+    been insisted that this program use the BLAST format.
 
-    All accepted formats MUST include a snps() function that returns the
+    All accepted formats must include a snps() function that returns the
     SNPs in HGVS's standard representation.
 
     Args:
@@ -65,7 +62,6 @@ class SnpSequence:
     The accepted Grammar of this format is:
     S -> nS | [a/b]S | empty_string
     where n, a, b in {A, C, G, T, -} and a != b.
-
     """
 
     def __init__(self, data):

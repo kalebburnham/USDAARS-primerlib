@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 from .parsers import TwoAlleles
 from .models import Sequence, Snp, AmasPrimer
 from .utils import hamming

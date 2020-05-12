@@ -1,7 +1,3 @@
-"""
-License information goes here.
-"""
-
 class NestedLoopError(Exception):
     """
     Generic error that will immediately stop the regular execution
